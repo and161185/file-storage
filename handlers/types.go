@@ -3,6 +3,7 @@ package handlers
 type FileMetadata struct {
 	FileID   string `json:"file_id"`
 	Filename string `json:"filename"`
+	IsImage  bool   `json:"is_image"`
 }
 
 type UploadRequest struct {

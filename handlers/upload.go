@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"file-storage/imageutils"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -38,6 +39,12 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	fileData, err := base64.StdEncoding.DecodeString(uploadReq.Data)
 	if err != nil {
 		http.Error(w, "Ошибка декодирования данных: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	fileData, err = imageutils.ConvertToJPEG(fileData)
+	if err != nil {
+		http.Error(w, "Ошибка преобразования в JPEG: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
