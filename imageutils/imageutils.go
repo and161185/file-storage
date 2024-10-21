@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	_ "image/png"
 
 	_ "golang.org/x/image/bmp" // Подключаем поддержку BMP
 	"golang.org/x/image/draw"
@@ -41,7 +42,7 @@ func ConvertToJPEG(data []byte) ([]byte, error) {
 	// Определяем MIME-тип данных
 	mime := mimetype.Detect(data)
 	if !mime.Is("image/jpeg") && !mime.Is("image/jpg") &&
-		!mime.Is("image/gif") && !mime.Is("image/bmp") {
+		!mime.Is("image/png") && !mime.Is("image/bmp") {
 		return nil, fmt.Errorf("недопустимый формат файла: %s", mime.String())
 	}
 

@@ -52,16 +52,20 @@ func saveMetadata(fileID string, fileMetadata FileMetadata) error {
 
 	fileMetadata.FileID = fileID
 
-	// Читаем существующие метаданные
 	data, err := os.ReadFile(MetadataStore)
-	if err == nil {
-		json.Unmarshal(data, &metadata)
-	}
-
-	// Парсим JSON
-	err = json.Unmarshal(data, &metadata)
 	if err != nil {
-		return err
+		// Если файл не найден, создаем пустой срез метаданных
+		if os.IsNotExist(err) {
+			metadata = []FileMetadata{}
+		} else {
+			return err // Возвращаем ошибку, если возникла другая ошибка
+		}
+	} else {
+		// Парсим JSON
+		err = json.Unmarshal(data, &metadata)
+		if err != nil {
+			return err
+		}
 	}
 
 	idFound := false

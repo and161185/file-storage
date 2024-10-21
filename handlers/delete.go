@@ -25,7 +25,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	filePath := filepath.Join(storagePath(), fileID)
 
 	if !fileExists(filePath) {
-		http.Error(w, "не найден файл для удаления", http.StatusBadRequest)
+		http.Error(w, "не найден файл для удаления "+filePath, http.StatusBadRequest)
 		return
 	}
 
