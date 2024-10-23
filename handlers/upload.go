@@ -1,14 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"file-storage/imageutils"
+	"file-storage/models"
 	"net/http"
-	"os"
-	"path/filepath"
-
-	"github.com/google/uuid"
 )
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +16,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var uploadReq UploadRequest
+	var uploadReq models.UploadRequest
 
 	// Ограничиваем размер тела запроса (например, 50 МБ)
 	r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
@@ -30,7 +28,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if uploadReq.Metadata.Filename == "" || uploadReq.Data == "" {
+	if uploadReq.Metadata.FileName == "" || uploadReq.Data == "" {
 		http.Error(w, "Поля 'Metadata.Filename' и 'Data' обязательны", http.StatusBadRequest)
 		return
 	}
@@ -48,28 +46,15 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Генерируем уникальный идентификатор файла
-	fileID := uuid.New().String()
-
-	// Путь для сохранения файла
-	filePath := filepath.Join(storagePath(), fileID)
-
-	// Сохраняем файл
-	err = os.WriteFile(filePath, fileData, 0644)
+	// Сохранение файла с помощью выбранного хранилища
+	fileID, err := storageService.SaveFile(context.Background(), fileData, uploadReq.Metadata, "")
 	if err != nil {
-		http.Error(w, "Ошибка сохранения файла: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Сохраняем метаданные
-	err = saveMetadata(fileID, uploadReq.Metadata)
-	if err != nil {
-		http.Error(w, "Ошибка сохранения метаданных: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Ошибка при сохранении файла", http.StatusInternalServerError)
 		return
 	}
 
 	// Возвращаем file_id в ответе
-	response := UploadResponse{FileID: fileID}
+	response := models.UploadResponse{FileID: fileID}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

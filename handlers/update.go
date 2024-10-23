@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"file-storage/imageutils"
+	"file-storage/models"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 )
@@ -24,7 +24,7 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var uploadReq UploadRequest
+	var uploadReq models.UploadRequest
 
 	// Ограничиваем размер тела запроса (например, 50 МБ)
 	r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
@@ -36,14 +36,15 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if uploadReq.Metadata.Filename == "" {
+	if uploadReq.Metadata.FileName == "" {
 		http.Error(w, "Поля 'Metadata.Filename' и 'Data' обязательны", http.StatusBadRequest)
 		return
 	}
 
+	var fileData []byte
 	if uploadReq.Data != "" {
 		// Декодируем Base64 данные
-		fileData, err := base64.StdEncoding.DecodeString(uploadReq.Data)
+		fileData, err = base64.StdEncoding.DecodeString(uploadReq.Data)
 		if err != nil {
 			http.Error(w, "Ошибка декодирования данных: "+err.Error(), http.StatusBadRequest)
 			return
@@ -54,33 +55,17 @@ func UpdateHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Ошибка преобразования в JPEG: "+err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		// Путь для сохранения файла
-		filePath := filepath.Join(storagePath(), fileID)
-
-		/*
-			if !fileExists(filePath) {
-				http.Error(w, "не найден файл для обновления", http.StatusBadRequest)
-				return
-			}
-		*/
-
-		// Сохраняем файл
-		err = os.WriteFile(filePath, fileData, 0644)
-		if err != nil {
-			http.Error(w, "Ошибка сохранения файла: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
 	}
 
-	err = saveMetadata(fileID, uploadReq.Metadata)
+	// Сохранение файла с помощью выбранного хранилища
+	_, err = storageService.SaveFile(context.Background(), fileData, uploadReq.Metadata, fileID)
 	if err != nil {
-		http.Error(w, "Ошибка сохранения метаданных: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Ошибка при сохранении файла", http.StatusInternalServerError)
 		return
 	}
 
 	// Возвращаем file_id в ответе
-	response := UploadResponse{FileID: fileID}
+	response := models.UploadResponse{FileID: fileID}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

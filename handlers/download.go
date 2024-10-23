@@ -1,12 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
-	"io"
+	"file-storage/models"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 )
@@ -24,31 +23,9 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := filepath.Join(storagePath(), fileID)
-
-	// Открываем файл
-	file, err := os.Open(filePath)
+	fileContent, metadata, err := storageService.GetFile(context.Background(), fileID)
 	if err != nil {
-		if os.IsNotExist(err) {
-			http.Error(w, "Файл не найден", http.StatusNotFound)
-		} else {
-			http.Error(w, "Ошибка открытия файла: "+err.Error(), http.StatusInternalServerError)
-		}
-		return
-	}
-	defer file.Close()
-
-	// Получаем исходное имя файла
-	metadata, err := getMetadata(fileID)
-	if err != nil {
-		http.Error(w, "Ошибка получения метаданных: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Читаем содержимое файла в память
-	fileContent, err := io.ReadAll(file)
-	if err != nil {
-		http.Error(w, "Ошибка чтения файла: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Ошибка поучения данных: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -56,7 +33,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 	encodedContent := base64.StdEncoding.EncodeToString(fileContent)
 
 	// Отправляем файл
-	response := DownloadResponse{Metadata: metadata, Data: encodedContent}
+	response := models.DownloadResponse{Metadata: metadata, Data: encodedContent}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

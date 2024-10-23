@@ -1,10 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
+	"file-storage/models"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/gorilla/mux"
 )
@@ -22,23 +22,14 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath := filepath.Join(storagePath(), fileID)
-
-	if !fileExists(filePath) {
-		http.Error(w, "не найден файл для удаления "+filePath, http.StatusBadRequest)
-		return
-	}
-
-	err := os.Remove(filePath)
+	err := storageService.DeleteFile(context.Background(), fileID)
 	if err != nil {
-		http.Error(w, "ошибка при удалении файла: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Ошибка при сохранении файла", http.StatusInternalServerError)
 		return
 	}
-
-	DeleteMetadata(fileID)
 
 	// Возвращаем file_id в ответе
-	response := UploadResponse{FileID: fileID}
+	response := models.UploadResponse{FileID: fileID}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }

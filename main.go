@@ -11,12 +11,22 @@ import (
 
 	"file-storage/handlers"
 	"file-storage/middleware"
+	"file-storage/storage"
 
 	"github.com/gorilla/mux"
 )
 
+var storageService storage.StorageService
+
 func main() {
-	handlers.CreateUploadsDir()
+
+	// Выбираем реализацию в зависимости от конфигурации
+	storageService = storage.NewFileSystemStorage("uploads")
+	// Или для MongoDB:
+	// storageService, _ = storage.NewMongoStorage("mongodb://localhost:27017", "filedb", "files")
+
+	// Используем storageService в хендлерах
+	handlers.SetStorageService(storageService)
 
 	router := mux.NewRouter()
 	router.Use(middleware.LoggingMiddleware)
