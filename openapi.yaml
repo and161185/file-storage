@@ -72,6 +72,10 @@ paths:
           name: ext
           schema:
             type: string
+            enum: 
+              - jpg
+              - png
+              - bmp
           description: File extension
     
         - in: query
@@ -170,8 +174,6 @@ components:
           description: Base64 encoded file data
     
     ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Error message
+      type: string
+      description: Error message
+      example: "текстовое описание ошибки"
