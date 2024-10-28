@@ -1,0 +1,20 @@
+{
+    "database": {
+        "uri": "mongodb://localhost:27017",
+        "name": "file_storage",
+        "collection": "files",
+        "max_pool_size": 64,
+        "min_pool_size": 8,
+        "max_conn_idle_time_sec": 60
+    },
+    "server": {
+        "port": 8080
+    },
+    "features": {
+        "test": false
+    },
+    "tokens": {
+        "general_token": "efd3474f-dc40-4c54-8641-a2d5b5aefe32",
+        "download_token": "df94e4e5-94aa-486f-aaac-a457f184d6e3"
+    }
+}

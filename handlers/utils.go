@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"file-storage/models"
 	"file-storage/storage"
 )
-
-type FileMetadata = models.FileMetadata
 
 var storageService storage.StorageService
 

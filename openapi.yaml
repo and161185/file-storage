@@ -1,0 +1,177 @@
+openapi: 3.0.0
+info:
+  title: File API
+  version: 1.0.0
+
+paths:
+
+  /upload:
+    post:
+      summary: Upload a file
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /update/{file_id}:
+    post:
+      summary: Update a file
+      parameters:
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              
+  /download/{file_id}:
+    get:
+      summary: Download a file
+      parameters:
+      
+        - name: file_id
+          in: path
+          required: true
+          schema:
+            type: string
+    
+        - in: query
+          name: ext
+          schema:
+            type: string
+          description: File extension
+    
+        - in: query
+          name: width
+          schema:
+            type: integer
+          description: Width of the image
+    
+        - in: query
+          name: height
+          schema:
+            type: integer
+          description: Height of the image
+    
+        - in: query
+          name: fileOnly
+          schema:
+            type: boolean
+          description: Return only the file for direct browser display
+      responses:
+        '200':
+          description: File downloaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadResponse'
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+                
+  /delete/{file_id}:
+    delete:
+      summary: Delete a file
+      parameters:
+      
+          - name: file_id
+            in: path
+            required: true
+            schema:
+              type: string
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  file_id:
+                    type: string
+                    description: ID of the deleted file
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    UploadRequest:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          type: string
+          description: Base64 encoded file data
+      required:
+        - data
+  
+    UploadResponse:
+      type: object
+      properties:
+        file_id:
+          type: string
+          description: ID of the uploaded file
+    
+    DownloadResponse:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+        data:
+          type: string
+          description: Base64 encoded file data
+    
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message

@@ -2,15 +2,18 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"file-storage/handlers"
 	"file-storage/middleware"
+	"file-storage/models"
 	"file-storage/storage"
 
 	"github.com/gorilla/mux"
@@ -18,18 +21,45 @@ import (
 
 var storageService storage.StorageService
 
+type Config = models.Config
+
+func LoadConfig(filename string) (*Config, error) {
+	bytes, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось прочитать файл настроек: %v", err)
+	}
+
+	var config Config
+	err = json.Unmarshal(bytes, &config)
+	if err != nil {
+		return nil, fmt.Errorf("не удалось преобразовать данные настроек в JSON: %v", err)
+	}
+
+	return &config, nil
+}
+
 func main() {
 
+	config, err := LoadConfig("config.json")
+	if err != nil {
+		fmt.Println("ошибка загрузки конфигурации:", err)
+		return
+	}
+
 	// Выбираем реализацию в зависимости от конфигурации
-	storageService = storage.NewFileSystemStorage("uploads")
-	// Или для MongoDB:
-	// storageService, _ = storage.NewMongoStorage("mongodb://localhost:27017", "filedb", "files")
+	if config.Features.Test {
+		storageService = storage.NewTestStorage("uploads")
+	} else {
+		configMongo := config.Mongo
+		storageService, _ = storage.NewMongoStorage(&configMongo)
+	}
 
 	// Используем storageService в хендлерах
 	handlers.SetStorageService(storageService)
 
 	router := mux.NewRouter()
 	router.Use(middleware.LoggingMiddleware)
+	router.Use(middleware.AuthMiddleware(config.Tokens.GeneralToken, config.Tokens.DownloadToken))
 
 	// Определяем маршруты
 	router.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
@@ -37,14 +67,15 @@ func main() {
 	router.HandleFunc("/download/{file_id}", handlers.DownloadHandler).Methods("GET")
 	router.HandleFunc("/delete/{file_id}", handlers.DeleteHandler).Methods("DELETE")
 
+	strPort := strconv.Itoa(config.Application.Port)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + strPort,
 		Handler: router,
 	}
 
 	// Запускаем сервер в горутине
 	go func() {
-		fmt.Println("Сервер запущен на порту :8080")
+		fmt.Println("Сервер запущен на порту :" + strPort)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Ошибка запуска сервера: %v\n", err)
 		}

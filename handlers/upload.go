@@ -28,7 +28,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if uploadReq.Metadata.FileName == "" || uploadReq.Data == "" {
+	if uploadReq.Metadata == nil || uploadReq.Data == "" {
 		http.Error(w, "Поля 'Metadata.Filename' и 'Data' обязательны", http.StatusBadRequest)
 		return
 	}
