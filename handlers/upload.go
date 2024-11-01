@@ -19,7 +19,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 	var uploadReq models.UploadRequest
 
 	// Ограничиваем размер тела запроса (например, 50 МБ)
-	r.Body = http.MaxBytesReader(w, r.Body, 50<<20)
+	r.Body = http.MaxBytesReader(w, r.Body, 500<<20)
 
 	// Читаем и декодируем JSON
 	err := json.NewDecoder(r.Body).Decode(&uploadReq)

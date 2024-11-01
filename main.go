@@ -69,8 +69,9 @@ func main() {
 
 	strPort := strconv.Itoa(config.Application.Port)
 	srv := &http.Server{
-		Addr:    ":" + strPort,
-		Handler: router,
+		Addr:           ":" + strPort,
+		Handler:        router,
+		MaxHeaderBytes: 500 << 20,
 	}
 
 	// Запускаем сервер в горутине

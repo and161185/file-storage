@@ -7,11 +7,11 @@ import (
 	"image/jpeg"
 	"image/png"
 
-	//_ "image/png"
+	_ "golang.org/x/image/webp"
+
+	"github.com/disintegration/imaging"
 
 	"golang.org/x/image/bmp"
-	//	_ "golang.org/x/image/bmp" // Подключаем поддержку BMP
-	"golang.org/x/image/draw"
 
 	"file-storage/models"
 
@@ -27,25 +27,7 @@ func ResizeImage(img image.Image, maxWidth, maxHeight int) image.Image {
 		return img
 	}
 
-	originalWidth := img.Bounds().Dx()
-	originalHeight := img.Bounds().Dy()
-
-	if originalWidth <= maxWidth && originalHeight <= maxHeight {
-		return img
-	}
-
-	var scaleFactor float64
-	if originalWidth > originalHeight && maxWidth != 0 {
-		scaleFactor = float64(maxWidth) / float64(originalWidth)
-	} else {
-		scaleFactor = float64(maxHeight) / float64(originalHeight)
-	}
-
-	newWidth := int(float64(originalWidth) * scaleFactor)
-	newHeight := int(float64(originalHeight) * scaleFactor)
-
-	resizedImg := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
-	draw.BiLinear.Scale(resizedImg, resizedImg.Bounds(), img, img.Bounds(), draw.Over, nil)
+	resizedImg := imaging.Resize(img, maxWidth, maxHeight, imaging.Lanczos)
 
 	return resizedImg
 }
@@ -53,15 +35,11 @@ func ResizeImage(img image.Image, maxWidth, maxHeight int) image.Image {
 func ConvertToJPEG(data []byte) ([]byte, error) {
 	// Определяем MIME-тип данных
 	mime := mimetype.Detect(data)
-	if !mime.Is("image/jpeg") && !mime.Is("image/jpg") &&
-		!mime.Is("image/png") && !mime.Is("image/bmp") {
-		return nil, fmt.Errorf("недопустимый формат файла: %s", mime.String())
-	}
 
 	// Декодируем изображение
-	img, _, err := image.Decode(bytes.NewReader(data))
+	img, err := imaging.Decode(bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("ошибка декодирования изображения: %v", err)
+		return nil, fmt.Errorf("ошибка декодирования изображения %s: %v", mime.String(), err)
 	}
 
 	// Изменяем размер изображения
@@ -69,7 +47,7 @@ func ConvertToJPEG(data []byte) ([]byte, error) {
 
 	// Создаем буфер для сохранения JPEG-данных
 	var outputBuffer bytes.Buffer
-	if err := jpeg.Encode(&outputBuffer, img, &jpeg.Options{Quality: 90}); err != nil {
+	if err := imaging.Encode(&outputBuffer, img, imaging.JPEG, imaging.JPEGQuality(90)); err != nil {
 		return nil, fmt.Errorf("ошибка кодирования JPEG: %v", err)
 	}
 
