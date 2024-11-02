@@ -27,7 +27,25 @@ func ResizeImage(img image.Image, maxWidth, maxHeight int) image.Image {
 		return img
 	}
 
-	resizedImg := imaging.Resize(img, maxWidth, maxHeight, imaging.Lanczos)
+	// Определение исходных размеров
+	srcWidth := img.Bounds().Dx()
+	srcHeight := img.Bounds().Dy()
+
+	// Расчет коэффициента масштабирования
+	scaleX := float64(maxWidth) / float64(srcWidth)
+	scaleY := float64(maxHeight) / float64(srcHeight)
+
+	// Выбираем наименьший коэффициент, чтобы избежать искажения
+	scale := scaleX
+	if scaleY < scaleX {
+		scale = scaleY
+	}
+
+	// Вычисляем новые размеры
+	newWidth := int(float64(srcWidth) * scale)
+	newHeight := int(float64(srcHeight) * scale)
+
+	resizedImg := imaging.Resize(img, newWidth, newHeight, imaging.Lanczos)
 
 	return resizedImg
 }

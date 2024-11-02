@@ -31,7 +31,7 @@ func DownloadHandler(w http.ResponseWriter, r *http.Request) {
 
 	fileContent, metadata, err := storageService.GetFile(context.Background(), fileID)
 	if err != nil {
-		http.Error(w, "Ошибка поучения данных: "+err.Error(), http.StatusBadRequest)
+		http.Error(w, "Ошибка получения данных: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
