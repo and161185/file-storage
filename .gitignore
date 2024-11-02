@@ -1,0 +1,4 @@
+uploads/
+compiled/
+config.json
+*debug*
