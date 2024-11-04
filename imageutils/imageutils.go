@@ -32,8 +32,15 @@ func ResizeImage(img image.Image, maxWidth, maxHeight int) image.Image {
 	srcHeight := img.Bounds().Dy()
 
 	// Расчет коэффициента масштабирования
-	scaleX := float64(maxWidth) / float64(srcWidth)
-	scaleY := float64(maxHeight) / float64(srcHeight)
+	scaleX := 1.0
+	if maxWidth != 0 {
+		scaleX = float64(maxWidth) / float64(srcWidth)
+	}
+
+	scaleY := 1.0
+	if maxHeight != 0 {
+		scaleY = float64(maxHeight) / float64(srcHeight)
+	}
 
 	// Выбираем наименьший коэффициент, чтобы избежать искажения
 	scale := scaleX

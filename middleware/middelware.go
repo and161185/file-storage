@@ -3,6 +3,7 @@ package middleware
 import (
 	"log"
 	"net/http"
+	"runtime"
 	"strings"
 )
 
@@ -36,4 +37,19 @@ func AuthMiddleware(generalToken, downloadToken string) func(http.Handler) http.
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func GCMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r) // Вызов обработчика
+		if strings.HasPrefix(r.URL.Path, "/upload") || strings.HasPrefix(r.URL.Path, "/update") {
+
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+
+			if m.Alloc > 2*1024*1024*1024 {
+				runtime.GC()
+			}
+		}
+	})
 }

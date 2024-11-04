@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filestorage
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: filestorage
+  template:
+    metadata:
+      labels:
+        app: filestorage
+    spec:
+      containers:
+      - name: filestorage
+        image: docker.io/library/filestorage:latest  # Замените на ваше имя образа и тег
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080  # Замените на порт вашего приложения

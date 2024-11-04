@@ -60,6 +60,7 @@ func main() {
 	router := mux.NewRouter()
 	router.Use(middleware.LoggingMiddleware)
 	router.Use(middleware.AuthMiddleware(config.Tokens.GeneralToken, config.Tokens.DownloadToken))
+	router.Use(middleware.GCMiddleware)
 
 	// Определяем маршруты
 	router.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")

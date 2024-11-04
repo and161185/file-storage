@@ -1,11 +1,8 @@
-FROM golang:1.23.2
+FROM scratch
 
-WORKDIR /app
-
-COPY . .
-
-RUN go build -o filestorage
+COPY filestorage /filestorage
+COPY config.json /config.json
 
 EXPOSE 8080
 
-CMD ["./filestorage"]
+CMD ["/filestorage"]
