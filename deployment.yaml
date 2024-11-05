@@ -12,6 +12,7 @@ spec:
       labels:
         app: filestorage
     spec:
+      restartPolicy: Always  # Перезапуск всегда
       containers:
       - name: filestorage
         image: docker.io/library/filestorage:latest  # Замените на ваше имя образа и тег

@@ -20,6 +20,11 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 func AuthMiddleware(generalToken, downloadToken string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasPrefix(r.URL.Path, "/version") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			token := r.URL.Query().Get("token")
 			if strings.HasPrefix(r.URL.Path, "/download") && r.Method == http.MethodGet {
 				// Проверка специального токена для маршрута загрузки

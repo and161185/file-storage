@@ -2,3 +2,6 @@ uploads/
 compiled/
 config.json
 *debug*
+Dockerfile
+filestorage
+filestorage.tar

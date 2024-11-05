@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var version = "undefined"
 var storageService storage.StorageService
 
 type Config = models.Config
@@ -63,6 +64,15 @@ func main() {
 	router.Use(middleware.GCMiddleware)
 
 	// Определяем маршруты
+	router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != http.MethodGet {
+			http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+			return
+		}
+
+		fmt.Fprintf(w, "Version: %s", version)
+	}).Methods("GET")
 	router.HandleFunc("/upload", handlers.UploadHandler).Methods("POST")
 	router.HandleFunc("/update/{file_id}", handlers.UpdateHandler).Methods("POST")
 	router.HandleFunc("/download/{file_id}", handlers.DownloadHandler).Methods("GET")
