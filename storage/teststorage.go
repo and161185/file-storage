@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"file-storage/models"
 	"fmt"
 	"log"
 	"os"
@@ -31,6 +32,12 @@ func CreateUploadsDir(path string) {
 			log.Fatalf("не удалось создать директорию '%s': %v", path, err)
 		}
 	}
+}
+
+func (fs *FileSystemStorage) Ready(ctx context.Context) models.ReadyResponse {
+	result := models.ReadyResponse{App: true, Database: true}
+
+	return result
 }
 
 func (fs *FileSystemStorage) SaveFile(ctx context.Context, fileData []byte, metadata map[string]interface{}, fileID string) (string, error) {

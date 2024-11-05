@@ -107,6 +107,13 @@ func (ms *MongoStorage) DeleteFile(ctx context.Context, fileID string) error {
 	return err
 }
 
+func (ms *MongoStorage) Ready(ctx context.Context) models.ReadyResponse {
+	err := ms.collection.Database().Client().Ping(ctx, nil)
+	result := models.ReadyResponse{App: true, Database: err == nil}
+
+	return result
+}
+
 func toBsonM(v interface{}) (bson.M, error) {
 	data, err := bson.Marshal(v)
 	if err != nil {

@@ -20,7 +20,10 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 func AuthMiddleware(generalToken, downloadToken string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasPrefix(r.URL.Path, "/version") {
+			if strings.HasPrefix(r.URL.Path, "/version") ||
+				strings.HasPrefix(r.URL.Path, "/health") ||
+				strings.HasPrefix(r.URL.Path, "/ready") ||
+				strings.HasPrefix(r.URL.Path, "/metrics") {
 				next.ServeHTTP(w, r)
 				return
 			}

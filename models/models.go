@@ -51,3 +51,8 @@ type QueryParams struct {
 	Heigth   int    `schema:"height"`
 	FileOnly bool   `schema:"fileOnly"`
 }
+
+type ReadyResponse struct {
+	App      bool `json:"app"`
+	Database bool `json:"databse"`
+}
