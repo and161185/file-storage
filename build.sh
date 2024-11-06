@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# Проверка наличия прав суперпользователя
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Пожалуйста, запустите этот скрипт с правами суперпользователя (sudo)."
+  exit 1
+fi
+
 #Чтение текущей версии из файла
 version=$(cat version.txt)
 
@@ -18,4 +24,21 @@ new_version="$major.$minor.$patch"
 echo $new_version > version.txt
 
 echo "Новая версия: $new_version"
-go build -ldflags "-X main.version=$(cat version.txt)" -o filestorage .
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$(cat version.txt)" -o filestorage .
+
+# Сборка Docker образа
+docker build -t filestorage:latest .
+
+# Выгрузка Docker образа
+docker save filestorage:latest -o filestorage.tar
+
+# Загрузка Docker образа в k3s
+k3s ctr image import filestorage.tar
+
+# Обновление подов k3s
+kubectl set image deployment/filestorage filestorage=filestorage:latest
+
+# Перезапуск развертывания для применения обновлений
+kubectl rollout restart deployment filestorage
+
+echo "Docker образ и Kubernetes поды успешно обновлены."
