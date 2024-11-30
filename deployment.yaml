@@ -22,7 +22,7 @@ spec:
           mountPath: /config.json  # Путь внутри контейнера
           subPath: config.json    # Монтируем только config.json
         ports:
-        - containerPort: 8080  # Замените на порт вашего приложения
+        - containerPort: 50205  # Замените на порт вашего приложения
       volumes:
       - name: config-volume
         configMap:

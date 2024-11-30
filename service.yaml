@@ -8,5 +8,5 @@ spec:
   ports:
     - protocol: TCP
       port: 80           # Внешний порт для доступа к приложению
-      targetPort: 8080    # Порт внутри контейнера (указан в вашем Deployment)
+      targetPort: 50205    # Порт внутри контейнера (указан в вашем Deployment)
   type: NodePort          # Используйте NodePort для доступа снаружи кластера
