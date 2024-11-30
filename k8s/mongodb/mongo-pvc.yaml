@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongo-pvc
+spec:
+  storageClassName: local-storage
+  accessModes:
+    - ReadWriteOnce  # Указываем, что том будет доступен для записи только одним подом
+  resources:
+    requests:
+      storage: 2Gi  # Начальный размер хранилища

@@ -47,8 +47,11 @@ FileStorage Service — это микросервис для хранения ф
    kubectl create configmap filestorage-config --from-file=config.json --dry-run=client -o yaml | kubectl apply -f -
 
 2. Применить манифесты:
-   kubectl apply -f deployment.yaml
-   kubectl apply -f service.yaml
+   kubectl apply -f k8s/filestorage/deployment.yaml
+   kubectl apply -f k8s/filestorage/service.yaml
+   kubectl apply -f k8s/mongodb/mongo-pv.yaml
+   kubectl apply -f k8s/mongodb/mongo-pvc.yaml
+   kubectl apply -f k8s/mongodb/mongo-deployment.yaml
 
 3. Проверить доступность сервиса:
    kubectl get pods
