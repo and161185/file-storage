@@ -32,6 +32,13 @@ docker build -t filestorage:latest .
 # Выгрузка Docker образа
 docker save filestorage:latest -o filestorage.tar
 
+# Очистка образов
+docker image prune -f
+
+# Создание ConfigMap
+kubectl create configmap filestorage-config --from-file=config.json --dry-run=client -o yaml | kubectl apply -f -
+echo "ConfigMap успешно создан или обновлен."
+
 # Загрузка Docker образа в k3s
 k3s ctr image import filestorage.tar
 

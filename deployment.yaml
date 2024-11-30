@@ -17,5 +17,13 @@ spec:
       - name: filestorage
         image: docker.io/library/filestorage:latest  # Замените на ваше имя образа и тег
         imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config.json  # Путь внутри контейнера
+          subPath: config.json    # Монтируем только config.json
         ports:
         - containerPort: 8080  # Замените на порт вашего приложения
+      volumes:
+      - name: config-volume
+        configMap:
+          name: filestorage-config  # Имя вашего ConfigMap
