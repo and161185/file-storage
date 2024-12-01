@@ -20,6 +20,11 @@ spec:
           volumeMounts:
             - mountPath: /data/db  # Путь, где MongoDB будет хранить свои данные
               name: mongo-storage
+          resources:
+            requests:
+              memory: "1Gi"     # Резервируем минимум 1 ГБ памяти
+            limits:
+              memory: "4Gi"     # Ограничиваем использование до 4 ГБ памяти
       volumes:
         - name: mongo-storage
           persistentVolumeClaim:
