@@ -1,66 +1,83 @@
 # FileStorage Service
 
-FileStorage Service — это микросервис для хранения файлов, разработанный на Go и развёрнутый в Kubernetes. Он включает функционал загрузки и скачивания файлов, а также поддерживает конфигурацию через ConfigMap.
+FileStorage Service is a microservice for file storage, developed in Go and deployed in Kubernetes. It includes functionality for uploading and downloading files and supports configuration through ConfigMap.
 
-## Возможности
+## Features
 
-- Хранение файлов в MongoDB.
-- Управление конфигурацией через Kubernetes ConfigMap.
+- File storage in MongoDB.
+- Configuration management via Kubernetes ConfigMap.
 
----
+## How to Run
 
-## Как запустить
+### 1. Local Execution
 
-### 1. Локальный запуск
-
-#### Требования:
+#### Requirements:
 - Go >= 1.20
-- Конфигурационный файл `config.json`.
-- строка подключения к монго указана с учетом развертывания монго в k3s
+- Configuration file `config.json`.
+- Connection string to MongoDB configured for deployment in k3s.
 
-#### Шаги:
-1. Скомпилировать приложение:
+#### Steps:
+1. Compile the application:
+   ```bash
    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o filestorage .
+   ```
 
-2. Запустить приложение:
+2. Run the application:
+   ```bash
    ./filestorage
+   ```
 
-3. Проверить доступность:
+3. Check availability:
+   ```bash
    curl http://localhost:50205/version
+   ```
 
-### 2. Сборка Docker-образа
+### 2. Build a Docker Image
 
-#### Шаги:
-1. Собрать образ:
+#### Steps:
+1. Build the image:
+   ```bash
    docker build -t filestorage:latest .
+   ```
 
-2. Запустить:
+2. Run the container:
+   ```bash
    docker run -p 50205:50205 filestorage:latest
+   ```
 
-3. Проверить доступность:
+3. Check availability:
+   ```bash
    curl http://localhost:50205/version
+   ```
 
-### 3. Деплой в Kubernetes
+### 3. Deploy in Kubernetes
 
-#### Шаги:
-1. Создать ConfigMap для конфигурации:
+#### Steps:
+1. Create a ConfigMap for configuration:
+   ```bash
    kubectl create configmap filestorage-config --from-file=config.json --dry-run=client -o yaml | kubectl apply -f -
+   ```
 
-2. Применить манифесты:
+2. Apply manifests:
+   ```bash
    kubectl apply -f k8s/filestorage/deployment.yaml
    kubectl apply -f k8s/filestorage/service.yaml
    kubectl apply -f k8s/mongodb/mongo-pv.yaml
    kubectl apply -f k8s/mongodb/mongo-pvc.yaml
    kubectl apply -f k8s/mongodb/mongo-deployment.yaml
+   ```
 
-3. Проверить доступность сервиса:
+3. Check service availability:
+   ```bash
    kubectl get pods
    kubectl get services
+   ```
 
-## Конфигурация
+## Configuration
 
-Файл config.json:
+Configuration file `config.json`:
 
+```json
 {
     "database": {
         "uri": "mongodb://<host>:<port>",
@@ -81,17 +98,27 @@ FileStorage Service — это микросервис для хранения ф
         "download_token": "your_download_token"
     }
 }
+```
 
-## Часто используемые команды
+## Frequently Used Commands
 
-1. Обновление ConfigMap
+1. Update ConfigMap:
+   ```bash
    kubectl create configmap filestorage-config --from-file=config.json --dry-run=client -o yaml | kubectl apply -f -
+   ```
 
-2. Перезапуск Pod'ов:
+2. Restart Pods:
+   ```bash
    kubectl rollout restart deployment filestorage
+   ```
 
-## Замечания
+## Notes
 
-- По умолчанию приложение использует порт 50205. При необходимости его можно изменить через config.json.
-- Конфигурация управляется через ConfigMap.
-- Если приложение запускается вне Kubernetes, убедитесь, что config.json лежит в рабочей директории.
+- By default, the application uses port 50205. It can be changed via `config.json`.
+- Configuration is managed via ConfigMap.
+- If running outside Kubernetes, ensure `config.json` is in the working directory.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
