@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filestorage
+  namespace: default
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: filestorage
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  template:
+    metadata:
+      labels:
+        app: filestorage
+    spec:
+      containers:
+        - name: filestorage
+          image: docker.io/library/filestorage:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50205
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /config.json
+              name: config-volume
+              subPath: config.json
+      restartPolicy: Always
+      volumes:
+        - name: config-volume
+          configMap:
+            name: filestorage-config

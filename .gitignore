@@ -3,5 +3,5 @@ compiled/
 config.json
 *debug*
 Dockerfile
-filestorage
+/filestorage
 filestorage.tar
