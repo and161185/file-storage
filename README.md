@@ -60,11 +60,12 @@ FileStorage Service is a microservice for file storage, developed in Go and depl
 
 2. Apply manifests:
    ```bash
-   kubectl apply -f k8s/filestorage/deployment.yaml
-   kubectl apply -f k8s/filestorage/service.yaml
    kubectl apply -f k8s/mongodb/mongo-pv.yaml
    kubectl apply -f k8s/mongodb/mongo-pvc.yaml
    kubectl apply -f k8s/mongodb/mongo-deployment.yaml
+   kubectl apply -f k8s/mongodb/mongo-service.yaml   
+   kubectl apply -f k8s/filestorage/deployment.yaml
+   kubectl apply -f k8s/filestorage/service.yaml
    ```
 
 3. Check service availability:
