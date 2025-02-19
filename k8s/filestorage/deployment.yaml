@@ -20,8 +20,7 @@ spec:
     spec:
       containers:
         - name: filestorage
-          image: docker.io/library/filestorage:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/and161185/file-storage:latest
           ports:
             - containerPort: 50205
               protocol: TCP
