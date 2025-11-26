@@ -1,0 +1,5 @@
+app:
+  port: 8888
+log:
+  level: "info"
+  type: "json"

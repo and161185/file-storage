@@ -1,0 +1,8 @@
+module file-storage
+
+go 1.24.5
+
+require (
+	github.com/go-chi/chi v1.5.5
+	github.com/spf13/pflag v1.0.10
+)
