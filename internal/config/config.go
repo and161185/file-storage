@@ -1,13 +1,13 @@
 package config
 
 import (
-	"encoding/json"
 	"file-storage/internal/errs"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -23,17 +23,17 @@ const (
 )
 
 type App struct {
-	Port int `json:"port"`
+	Port int `json:"port" yaml:"port"`
 }
 
 type Log struct {
-	Level string `json:"level"`
-	Type  string `json:"type"`
+	Level string `json:"level" yaml:"level"`
+	Type  string `json:"type" yaml:"type"`
 }
 
 type Config struct {
-	App App `json:"app"`
-	Log Log `json:"log"`
+	App App `json:"app" yaml:"app"`
+	Log Log `json:"log" yaml:"log"`
 }
 
 func NewConfig(configPath string) (*Config, error) {
@@ -84,7 +84,7 @@ func applyConfigFile(cfg *Config, configPath string) error {
 		return err
 	}
 
-	err = json.Unmarshal(b, cfg)
+	err = yaml.Unmarshal(b, cfg)
 	if err != nil {
 		return err
 	}
