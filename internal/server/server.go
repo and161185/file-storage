@@ -3,25 +3,29 @@ package server
 import (
 	"context"
 	"file-storage/internal/config"
+	"file-storage/internal/handlers"
+	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 )
 
 type Server struct {
+	port int
+	Log  *slog.Logger
 }
 
-func NewServer(config *config.Config) *Server {
-	return &Server{}
+func NewServer(config *config.App, log *slog.Logger) *Server {
+	return &Server{port: config.Port, Log: log}
 }
 
 func (s *Server) Run(ctx context.Context) error {
+
 	r := chi.NewRouter()
 	//r.Use(middleware.Logger)
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("welcome"))
-	})
-	http.ListenAndServe(":3000", r)
+	r.Get("/", handlers.Get)
+	http.ListenAndServe(":"+strconv.Itoa(s.port), r)
 
 	return nil
 }

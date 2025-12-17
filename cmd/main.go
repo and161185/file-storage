@@ -19,7 +19,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := server.NewServer(config)
+	log := logger.New(&config.Log)
+	srv := server.NewServer(&config.App, log)
 
 	ctx := context.Background()
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
