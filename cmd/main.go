@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	bootstrapLogger := logger.NewBootstrap()
+	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")
 
 	config, err := getConfig()
 	if err != nil {
@@ -19,7 +19,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log := logger.New(&config.Log)
+	log := logger.New(&config.Log).With("service", "file-storage")
 	srv := server.NewServer(&config.App, log)
 
 	ctx := context.Background()
