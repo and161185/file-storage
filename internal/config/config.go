@@ -31,9 +31,15 @@ type Log struct {
 	Type  string `json:"type" yaml:"type"`
 }
 
+type Security struct {
+	ReadToken  string `json:"read_token" yaml:"read_token"`
+	WriteToken string `json:"write_token" yaml:"write_token"`
+}
+
 type Config struct {
-	App App `json:"app" yaml:"app"`
-	Log Log `json:"log" yaml:"log"`
+	App      App      `json:"app" yaml:"app"`
+	Log      Log      `json:"log" yaml:"log"`
+	Security Security `json:"security" yaml:"security"`
 }
 
 func NewConfig(configPath string) (*Config, error) {
@@ -113,6 +119,16 @@ func applyEnv(cfg *Config) error {
 		cfg.Log.Type = sLogType
 	}
 
+	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
+	if sReadToken != "" {
+		cfg.Security.ReadToken = sReadToken
+	}
+
+	sWriteToken := os.Getenv("FILE_STORAGE_WRITE_TOKEN")
+	if sWriteToken != "" {
+		cfg.Security.WriteToken = sWriteToken
+	}
+
 	return nil
 }
 
@@ -140,6 +156,16 @@ func applyFlags(cfg *Config) error {
 	fLogType := pflag.Lookup("logtype")
 	if fLogType != nil && fLogType.Changed {
 		cfg.Log.Type = fLogType.Value.String()
+	}
+
+	fReadToken := pflag.Lookup("readtoken")
+	if fReadToken != nil && fReadToken.Changed {
+		cfg.Security.ReadToken = fReadToken.Value.String()
+	}
+
+	fWriteToken := pflag.Lookup("writetoken")
+	if fWriteToken != nil && fWriteToken.Changed {
+		cfg.Security.WriteToken = fWriteToken.Value.String()
 	}
 
 	return nil
