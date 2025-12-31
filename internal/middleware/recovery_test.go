@@ -10,16 +10,13 @@ import (
 
 func TestRecovery(t *testing.T) {
 
-	//TODO  t.Run
-
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	middleware := Recovery(log)
 
 	tests := []struct {
-		name        string
-		writeHeader bool
-		want        int
-		handler     http.HandlerFunc
+		name    string
+		want    int
+		handler http.HandlerFunc
 	}{
 		{
 			name: "panic",
@@ -39,16 +36,21 @@ func TestRecovery(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		handlerFunc := middleware(tt.handler)
 
-		rr := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "http://example.com", http.NoBody)
+		t.Run(tt.name, func(t *testing.T) {
 
-		handlerFunc.ServeHTTP(rr, r)
+			handlerFunc := middleware(tt.handler)
 
-		if rr.Code != tt.want {
-			t.Errorf("%s got %d want %d", tt.name, rr.Code, tt.want)
-		}
+			rr := httptest.NewRecorder()
+			r := httptest.NewRequest("GET", "http://example.com", http.NoBody)
+
+			handlerFunc.ServeHTTP(rr, r)
+
+			if rr.Code != tt.want {
+				t.Errorf("got %d want %d", rr.Code, tt.want)
+			}
+		})
+
 	}
 
 }

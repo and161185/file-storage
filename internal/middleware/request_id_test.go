@@ -25,30 +25,42 @@ func TestRequestID(t *testing.T) {
 	}
 
 	for _, tt := range table {
-		w := httptest.NewRecorder()
-		r := httptest.NewRequest("GET", "/method", http.NoBody)
 
-		if tt.id != "" {
-			r.Header.Add(HeaderRequestIDName, tt.id)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			gotRequestID = nil
 
-		handlerFunc.ServeHTTP(w, r)
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest("GET", "/method", http.NoBody)
 
-		grID, ok := gotRequestID.(string)
-		if !ok {
-			t.Errorf("test '%s': type assertion failed", tt.name)
-			continue
-		}
-		if tt.id != "" {
-			if tt.id != grID {
-				t.Errorf("test '%s':  got %s want %s", tt.name, grID, tt.id)
+			if tt.id != "" {
+				r.Header.Add(HeaderRequestIDName, tt.id)
 			}
-		} else {
-			if grID == "" {
-				t.Errorf("test '%s':  got %s want new ID", tt.name, grID)
-			}
-		}
 
+			handlerFunc.ServeHTTP(w, r)
+
+			grID, ok := gotRequestID.(string)
+			if !ok {
+				t.Fatalf("type assertion failed")
+			}
+			if tt.id != "" {
+				if tt.id != grID {
+					t.Errorf("got context request ID %s want %s", grID, tt.id)
+				}
+			} else {
+				if grID == "" {
+					t.Error("got context request ID as empty string want new ID")
+				}
+			}
+
+			if tt.id != "" {
+				if tt.id != w.Header().Get(HeaderRequestIDName) {
+					t.Errorf("got emty header %s, want filled", HeaderRequestIDName)
+				}
+			} else {
+				if w.Header().Get(HeaderRequestIDName) == "" {
+					t.Errorf("got emty header %s, want filled", HeaderRequestIDName)
+				}
+			}
+		})
 	}
-
 }

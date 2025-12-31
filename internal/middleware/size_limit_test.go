@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -45,33 +46,42 @@ func TestSizeLimit(t *testing.T) {
 			wantHandlerErr:    &http.MaxBytesError{Limit: 8},
 			wantStatus:        http.StatusOK,
 		},
+		{
+			name:              "content ok",
+			contentLength:     "1",
+			body:              "1",
+			wantHandlerCalled: true,
+			wantHandlerErr:    nil,
+			wantStatus:        http.StatusOK,
+		},
 	}
 
 	for _, tt := range table {
-		w := httptest.NewRecorder()
-		wwrapped := &responseWriter{w, false, 0}
 
-		r := httptest.NewRequest("GET", "/method", strings.NewReader(tt.body))
-		r.Header.Set("Content-Length", tt.contentLength)
+		t.Run(tt.name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			wwrapped := &responseWriter{w, false, 0}
 
-		handlerCalled = false
-		handlerErr = nil
-		handlerFunc.ServeHTTP(wwrapped, r)
+			r := httptest.NewRequest("GET", "/method", strings.NewReader(tt.body))
+			r.Header.Set("Content-Length", tt.contentLength)
 
-		if handlerCalled != tt.wantHandlerCalled {
-			t.Errorf("test %s handler called got %v want %v", tt.name, handlerCalled, tt.wantHandlerCalled)
-			continue
-		}
-		if tt.wantHandlerErr != nil {
-			if handlerErr.Error() != tt.wantHandlerErr.Error() {
-				t.Errorf("test %s handler err got %s want %s", tt.name, handlerErr, tt.wantHandlerErr)
-				continue
+			handlerCalled = false
+			handlerErr = nil
+			handlerFunc.ServeHTTP(wwrapped, r)
+
+			if handlerCalled != tt.wantHandlerCalled {
+				t.Fatalf("handler called got %v want %v", handlerCalled, tt.wantHandlerCalled)
 			}
-		}
-		if w.Code != tt.wantStatus {
-			t.Errorf("test %s status got %d want %d", tt.name, w.Code, tt.wantStatus)
-			continue
-		}
+			if tt.wantHandlerErr != nil {
+				var mbe *http.MaxBytesError
+				if !errors.As(handlerErr, &mbe) {
+					t.Fatalf("handler err got %s want %s", handlerErr, tt.wantHandlerErr)
+				}
+			}
+			if w.Code != tt.wantStatus {
+				t.Fatalf("status got %d want %d", w.Code, tt.wantStatus)
+			}
+		})
 	}
 
 }
