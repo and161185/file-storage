@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"file-storage/internal/contextkeys"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,11 +12,15 @@ import (
 func TestRequestID(t *testing.T) {
 
 	var gotRequestID any
+	var gotLogger any
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotRequestID = r.Context().Value(contextkeys.ContextKeyRequestID)
+		gotLogger = r.Context().Value(contextkeys.ContextKeyLogger)
 	})
 
-	handlerFunc := RequestID(handler)
+	log := slog.New(slog.NewTextHandler(io.Discard, nil))
+	middleware := RequestID(log)
+	handlerFunc := middleware(handler)
 
 	table := []struct {
 		name string
@@ -28,6 +34,7 @@ func TestRequestID(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			gotRequestID = nil
+			gotLogger = nil
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest("GET", "/method", http.NoBody)
@@ -40,7 +47,7 @@ func TestRequestID(t *testing.T) {
 
 			grID, ok := gotRequestID.(string)
 			if !ok {
-				t.Fatalf("type assertion failed")
+				t.Fatalf("request ID type assertion failed")
 			}
 			if tt.id != "" {
 				if tt.id != grID {
@@ -61,6 +68,15 @@ func TestRequestID(t *testing.T) {
 					t.Errorf("got emty header %s, want filled", HeaderRequestIDName)
 				}
 			}
+
+			gLogger, ok := gotLogger.(*slog.Logger)
+			if !ok {
+				t.Fatalf("Logger type assertion failed")
+			}
+			if gLogger == nil {
+				t.Errorf("got nil logger from context want *slog.Logger")
+			}
+
 		})
 	}
 }

@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"context"
 	"file-storage/internal/config"
+	"file-storage/internal/contextkeys"
 	"log/slog"
 	"os"
 	"strings"
@@ -9,6 +11,7 @@ import (
 
 type ComponentName string
 type MiddlewareName string
+type HandlerName string
 
 const (
 	ComponentMiddleware ComponentName = "middleware"
@@ -17,6 +20,12 @@ const (
 const (
 	MiddlewareRecovery  MiddlewareName = "recovery"
 	MiddlewareAccessLog MiddlewareName = "access_log"
+)
+
+const (
+	HandlerDelete HandlerName = "delete"
+	HandlerGet    HandlerName = "get"
+	HandlerUpdate HandlerName = "upload"
 )
 
 const (
@@ -63,4 +72,17 @@ func WithComponent(log *slog.Logger, c ComponentName) *slog.Logger {
 
 func WithMiddleware(log *slog.Logger, m MiddlewareName) *slog.Logger {
 	return log.With("middleware", m)
+}
+
+func WithHandler(log *slog.Logger, h HandlerName) *slog.Logger {
+	return log.With("handler", h)
+}
+
+func FromContext(ctx context.Context) *slog.Logger {
+	l, ok := ctx.Value(contextkeys.ContextKeyLogger).(*slog.Logger)
+
+	if !ok || l == nil {
+		panic("logger is missing in context; RequestID middleware put it into context and must run first")
+	}
+	return l
 }

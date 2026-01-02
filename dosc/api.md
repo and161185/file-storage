@@ -5,9 +5,24 @@
     422 - FormatUnsupported
 
 ## POST /upload
-    201 - Created
-    413 - TooBig
-    422 - FormatUnsupported
+    201 Created
+    - new file created (no id OR id not found)
+
+    200 OK
+    - file existed:
+    - hash different → file replaced
+    - hash same → binary preserved, metadata updated
+
+    400 Bad Request
+    - invalid JSON / invalid base64
+
+    413 Payload Too Large
+
+    415 Unsupported Media Type
+    - isImage=true but file is not recognized as image
+
+    422 Unprocessable Entity
+    - provided hash doesn’t match calculated one
 
 ## DELETE /delete
     204 - No Content
@@ -19,14 +34,26 @@ File consist of
 1. ID
 2. Binary data
 3. Metadata (JSON, any fields you want)
+4. Hash
+5. IsImage
 
 ## UPLOAD
-- needs Binary data and Matadata
-- ID is optional
-- if ID is provided and file exists - file is replaced
-- if ID is provided and file does not exist - file is created
-- if ID is not provided - file with new id is created
-- always returns ID
+    requires: Binary, Metadata, Hash
+
+    ID optional
+    ID absent OR not found - create (201)
+    ID exists:
+       - hash differs - replace file (200)
+       - hash equals - skip storing, update     metadata only (200)
+
+    hash:
+       - ensures integrity
+       - avoids pointless rewrites
+
+    isImage optional:
+       - omitted - service detects
+       - true - service validates image format, converts to storage format
+       - invalid image - 415
 
 ## GET
 supports two modes:
@@ -36,15 +63,17 @@ format and size can be requested
 
 # Middlewares
 
-## 1.Recover
-catch panic
-answer 500
-
-## 2.Request ID
+## 1.Request ID
 check if X-Request-ID header exists
 - if exists forward it to request_id
 - if not, creates new request_id for query
 request_id stored in context, return in responce header
+
+put logger into context
+
+## 2.Recover
+catch panic
+answer 500
 
 ## 3.Access Log
 log request/response metadata: method, path, status, duration, request_id

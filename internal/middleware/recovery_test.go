@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"context"
+	"file-storage/internal/contextkeys"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,9 +11,6 @@ import (
 )
 
 func TestRecovery(t *testing.T) {
-
-	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	middleware := Recovery(log)
 
 	tests := []struct {
 		name    string
@@ -39,10 +38,13 @@ func TestRecovery(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 
-			handlerFunc := middleware(tt.handler)
+			handlerFunc := Recovery(tt.handler)
 
 			rr := httptest.NewRecorder()
 			r := httptest.NewRequest("GET", "http://example.com", http.NoBody)
+			log := slog.New(slog.NewTextHandler(io.Discard, nil))
+			ctx := context.WithValue(r.Context(), contextkeys.ContextKeyLogger, log)
+			r = r.WithContext(ctx)
 
 			handlerFunc.ServeHTTP(rr, r)
 

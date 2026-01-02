@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"file-storage/internal/contextkeys"
+	"log/slog"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -10,19 +11,25 @@ import (
 
 const HeaderRequestIDName = "X-Request-ID"
 
-func RequestID(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func RequestID(log *slog.Logger) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		rID := r.Header.Get(HeaderRequestIDName)
-		if rID == "" {
-			rID = uuid.New().String()
-		}
+			rID := r.Header.Get(HeaderRequestIDName)
+			if rID == "" {
+				rID = uuid.New().String()
+			}
 
-		contextID := context.WithValue(r.Context(), contextkeys.ContextKeyRequestID, rID)
-		r = r.WithContext(contextID)
+			l := log.With("request_id", rID)
 
-		w.Header().Add(HeaderRequestIDName, rID)
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, contextkeys.ContextKeyRequestID, rID)
+			ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, l)
+			r = r.WithContext(ctx)
 
-		next.ServeHTTP(w, r)
-	})
+			w.Header().Set(HeaderRequestIDName, rID)
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
