@@ -25,8 +25,9 @@ func (s *Server) Run(ctx context.Context) error {
 
 	r := chi.NewRouter()
 	//r.Use(middleware.Logger)
-	r.Get("/", handlers.Get)
-	r.Post("/upload", handlers.UploadHandler(s.Log))
+	//r.Get("/", handlers.Get)
+	r.Get("/files/{id}/info", handlers.InfoHandler)
+	r.Post("/files/upload", handlers.UploadHandler)
 	//httpServer.ListenAndServe(":"+strconv.Itoa(s.port), r)
 	httpServer := http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },

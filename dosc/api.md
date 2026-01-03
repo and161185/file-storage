@@ -1,5 +1,10 @@
 # Handlers
-## GET /get
+## GET /info
+    200 - Ok
+    404 - NotFound
+    422 - FormatUnsupported
+
+## GET /content
     200 - Ok
     404 - NotFound
     422 - FormatUnsupported
@@ -23,15 +28,19 @@
 
     422 Unprocessable Entity
     - provided hash doesn’t match calculated one
+    - no data to upload
 
 ## DELETE /delete
     204 - No Content
     (delete is idempotent)
 
+    400 - Bad Request
+    - ID incorrect format 
+
 # Logic
 ## File
 File consist of 
-1. ID
+1. ID 36 symbols
 2. Binary data
 3. Metadata (JSON, any fields you want)
 4. Hash
@@ -55,11 +64,12 @@ File consist of
        - true - service validates image format, converts to storage format
        - invalid image - 415
 
-## GET
-supports two modes:
-1. raw binary (file only)
-2. structure with binary data and metadata
-format and size can be requested
+## CONTENT
+    raw binary (file only), format and size can be requested
+
+## INFO
+    structure with metadata without binary data
+
 
 # Middlewares
 

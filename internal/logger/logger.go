@@ -23,9 +23,10 @@ const (
 )
 
 const (
-	HandlerDelete HandlerName = "delete"
-	HandlerGet    HandlerName = "get"
-	HandlerUpdate HandlerName = "upload"
+	HandlerContent HandlerName = "content"
+	HandlerDelete  HandlerName = "delete"
+	HandlerInfo    HandlerName = "info"
+	HandlerUpdate  HandlerName = "upload"
 )
 
 const (

@@ -9,9 +9,9 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func DeleteHandler(w http.ResponseWriter, r *http.Request) {
+func ContentHandler(w http.ResponseWriter, r *http.Request) {
 	log := logger.FromContext(r.Context())
-	log = logger.WithHandler(log, logger.HandlerDelete)
+	log = logger.WithHandler(log, logger.HandlerContent)
 
 	auth, ok := r.Context().Value(contextkeys.ContextKeyAuth).(authorization.Auth)
 	if !ok {
@@ -19,7 +19,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		log.Error("failed to get Auth structure out of context")
 		return
 	}
-	if !auth.Write {
+	if !auth.Read {
 		w.WriteHeader(http.StatusForbidden)
 		log.Warn("write access denied")
 		return
