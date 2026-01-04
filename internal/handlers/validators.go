@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"file-storage/internal/errs"
+	"file-storage/internal/handlers/models"
 	"file-storage/internal/imgproc"
-	"file-storage/internal/models"
 	"fmt"
 	"net/http"
 )
@@ -43,7 +43,7 @@ func validateUploadRequest(r *models.UploadRequest) error {
 	return nil
 }
 
-func validateQueryID(ID string) error {
+func validateID(ID string) error {
 	const IDLength = 36
 
 	if len(ID) != IDLength {

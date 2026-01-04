@@ -5,6 +5,7 @@ import (
 	"file-storage/internal/contextkeys"
 	"file-storage/internal/logger"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi"
 )
@@ -15,7 +16,7 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	auth, ok := r.Context().Value(contextkeys.ContextKeyAuth).(authorization.Auth)
 	if !ok {
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Error("failed to get Auth structure out of context")
 		return
 	}
@@ -25,9 +26,9 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ID := chi.URLParam(r, "id")
+	ID := strings.TrimSpace(chi.URLParam(r, "id"))
 
-	err := validateQueryID(ID)
+	err := validateID(ID)
 	if err != nil {
 		handleValidationError(w, log, err)
 		return

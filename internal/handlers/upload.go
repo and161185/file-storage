@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
+	"file-storage/internal/handlers/models"
 	"file-storage/internal/logger"
-	"file-storage/internal/models"
 	"log/slog"
 	"net/http"
+	"strings"
 )
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -18,7 +19,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	auth, ok := r.Context().Value(contextkeys.ContextKeyAuth).(authorization.Auth)
 	if !ok {
-		w.WriteHeader(http.StatusForbidden)
+		w.WriteHeader(http.StatusInternalServerError)
 		log.Error("failed to get Auth structure out of context")
 		return
 	}
@@ -39,6 +40,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fd.ID = strings.TrimSpace(fd.ID)
 	err = validateUploadRequest(&fd)
 	if err != nil {
 		handleValidationError(w, log, err)
