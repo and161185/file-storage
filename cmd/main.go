@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"file-storage/internal/files"
 	"file-storage/internal/logger"
 	"file-storage/internal/server"
+	"file-storage/internal/storage/inmemory"
 	"fmt"
 	"os"
 	"os/signal"
@@ -20,7 +22,10 @@ func main() {
 	}
 
 	log := logger.New(&config.Log).With("service", "file-storage")
-	srv := server.NewServer(&config.App, log)
+
+	storage := inmemory.New()
+	svc := files.NewService(storage)
+	srv := server.NewServer(&config.App, svc, log)
 
 	ctx := context.Background()
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)

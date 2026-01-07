@@ -1,8 +1,13 @@
 package files
 
+import (
+	"context"
+	"io"
+)
+
 type Storage interface {
-	Save(fd *FileData) (string, error)
-	Info(ID string) (*FileInfo, error)
-	Content(ID string) ([]byte, error)
-	Delete(ID string) error
+	Upsert(ctx context.Context, fd *FileData) (string, error)
+	Info(ctx context.Context, ID string) (*FileInfo, error)
+	Content(ctx context.Context, ID string) (io.ReadCloser, error)
+	Delete(ctx context.Context, ID string) error
 }

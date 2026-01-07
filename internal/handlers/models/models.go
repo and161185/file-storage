@@ -7,6 +7,7 @@ type UploadRequest struct {
 	IsImage  *bool          `json:"is_image"`
 	Metadata map[string]any `json:"metadata"`
 }
+
 type ContentRequest struct {
 	ID     string
 	Width  *int

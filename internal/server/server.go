@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"file-storage/internal/config"
+	"file-storage/internal/files"
 	"file-storage/internal/handlers"
 	"log/slog"
 	"net"
@@ -13,12 +14,13 @@ import (
 )
 
 type Server struct {
-	port int
-	Log  *slog.Logger
+	Service *files.Service
+	port    int
+	Log     *slog.Logger
 }
 
-func NewServer(config *config.App, log *slog.Logger) *Server {
-	return &Server{port: config.Port, Log: log}
+func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
+	return &Server{port: config.Port, Service: svc, Log: log}
 }
 
 func (s *Server) Run(ctx context.Context) error {
@@ -27,7 +29,7 @@ func (s *Server) Run(ctx context.Context) error {
 	//r.Use(middleware.Logger)
 	//r.Get("/", handlers.Get)
 	r.Get("/files/{id}/info", handlers.InfoHandler)
-	r.Post("/files/upload", handlers.UploadHandler)
+	r.Post("/files/upload", handlers.UploadHandler(s.Service))
 	//httpServer.ListenAndServe(":"+strconv.Itoa(s.port), r)
 	httpServer := http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },

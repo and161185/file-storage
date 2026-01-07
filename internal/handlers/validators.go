@@ -6,12 +6,16 @@ import (
 	"errors"
 	"file-storage/internal/errs"
 	"file-storage/internal/handlers/models"
-	"file-storage/internal/imgproc"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 func validateUploadRequest(r *models.UploadRequest) error {
+
+	if err := validateUploadID(r.ID); err != nil {
+		return err
+	}
 
 	//nothig useful in query
 	if len(r.Data) == 0 && len(r.Metadata) == 0 {
@@ -30,17 +34,25 @@ func validateUploadRequest(r *models.UploadRequest) error {
 	}
 
 	if r.IsImage != nil && *r.IsImage {
-		if !imgproc.IsImage(r.Data) {
+		if !isImage(r.Data) {
 			return errs.ErrNotSupportedImageType
 		}
 	}
 
-	if r.IsImage == nil {
-		isImage := imgproc.IsImage(r.Data)
-		r.IsImage = &isImage
+	if r.Metadata != nil {
+		for k, v := range r.Metadata {
+			if err := checkMetadataValue(v); err != nil {
+				return fmt.Errorf("field %s in metadata: %w", k, err)
+			}
+		}
 	}
 
 	return nil
+}
+
+func isImage(data []byte) bool {
+	contentType := http.DetectContentType(data)
+	return strings.HasPrefix(contentType, "image/")
 }
 
 func validateID(ID string) error {
@@ -51,6 +63,25 @@ func validateID(ID string) error {
 	}
 
 	return nil
+}
+
+func validateUploadID(ID string) error {
+	const IDLength = 36
+
+	if len(ID) != 0 && len(ID) != IDLength {
+		return fmt.Errorf("ID must be empty or %d symbols: %w", IDLength, errs.ErrWrongIDLength)
+	}
+
+	return nil
+}
+
+func checkMetadataValue(v any) error {
+	switch v.(type) {
+	case string, bool, float64:
+		return nil
+	default:
+		return errs.ErrUnsupportedTypeInMetadata
+	}
 }
 
 func mapErrorToHttpStatus(err error) (int, bool) {
