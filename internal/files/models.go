@@ -1,6 +1,8 @@
 package files
 
-import "time"
+import (
+	"time"
+)
 
 type UploadCommand struct {
 	ID       string
@@ -14,8 +16,11 @@ type FileData struct {
 	ID        string
 	Data      []byte
 	Hash      string
-	MimeType  string
 	FileSize  int
+	IsImage   bool
+	Ext       string
+	Width     int
+	Height    int
 	Metadata  map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -23,8 +28,11 @@ type FileData struct {
 
 type FileInfo struct {
 	ID        string
-	MimeType  string
 	FileSize  int
+	IsImage   bool
+	Ext       string
+	Width     int
+	Height    int
 	Metadata  map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time

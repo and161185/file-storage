@@ -11,11 +11,11 @@ const (
 	ImgFormatWEBP ImgFormat = "webp"
 )
 
-var supportedFormats = map[ImgFormat]string{
-	ImgFormatBMP:  "image/bmp",
-	ImgFormatJPG:  "image/jpeg",
-	ImgFormatPNG:  "image/png",
-	ImgFormatGIF:  "image/gif",
-	ImgFormatTIFF: "image/tiff",
-	ImgFormatWEBP: "image/webp",
+var supportedFormats = map[ImgFormat]ImgFormat{
+	ImgFormatBMP:  ImgFormatBMP,
+	ImgFormatJPG:  ImgFormatJPG,
+	ImgFormatPNG:  ImgFormatPNG,
+	ImgFormatGIF:  ImgFormatGIF,
+	ImgFormatTIFF: ImgFormatTIFF,
+	ImgFormatWEBP: ImgFormatWEBP,
 }

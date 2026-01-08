@@ -2,6 +2,7 @@ package config
 
 import (
 	"file-storage/internal/errs"
+	"file-storage/internal/imgproc"
 	"os"
 	"strconv"
 	"strings"
@@ -36,10 +37,16 @@ type Security struct {
 	WriteToken string `json:"write_token" yaml:"write_token"`
 }
 
+type Image struct {
+	Ext          string `json:"ext" yaml:"ext"`
+	MaxDimention int    `json:"width" yaml:"max_dimention"`
+}
+
 type Config struct {
 	App      App      `json:"app" yaml:"app"`
 	Log      Log      `json:"log" yaml:"log"`
 	Security Security `json:"security" yaml:"security"`
+	Image    Image    `json:"image" yaml:"image"`
 }
 
 func NewConfig(configPath string) (*Config, error) {
@@ -129,6 +136,20 @@ func applyEnv(cfg *Config) error {
 		cfg.Security.WriteToken = sWriteToken
 	}
 
+	sImageExt := os.Getenv("FILE_STORAGE_IMAGE_EXT")
+	if sImageExt != "" {
+		cfg.Image.Ext = sImageExt
+	}
+
+	sImageMaxDimention := os.Getenv("FILE_STORAGE_IMAGE_MAX_DIMENTION")
+	if sImageMaxDimention != "" {
+		maxDim, err := strconv.Atoi(sImageMaxDimention)
+		if err != nil {
+			return err
+		}
+		cfg.Image.MaxDimention = maxDim
+	}
+
 	return nil
 }
 
@@ -168,6 +189,21 @@ func applyFlags(cfg *Config) error {
 		cfg.Security.WriteToken = fWriteToken.Value.String()
 	}
 
+	fImageExt := pflag.Lookup("imageext")
+	if fImageExt != nil && fImageExt.Changed {
+		cfg.Image.Ext = fImageExt.Value.String()
+	}
+
+	fImageMaxDimention := pflag.Lookup("imagemaxdimention")
+	if fImageMaxDimention != nil && fImageMaxDimention.Changed {
+		raw := fImageMaxDimention.Value.String()
+		maxDim, err := strconv.Atoi(raw)
+		if err != nil {
+			return err
+		}
+		cfg.Image.MaxDimention = maxDim
+	}
+
 	return nil
 }
 
@@ -187,6 +223,14 @@ func validate(cfg *Config) error {
 
 	if cfg.Log.Level != LogLevelDebug && cfg.Log.Level != LogLevelInfo && cfg.Log.Level != LogLevelWarn && cfg.Log.Level != LogLevelError {
 		return errs.ErrConfigWrongLogLevel
+	}
+
+	if !imgproc.SupportedFormat(cfg.Image.Ext) {
+		return errs.ErrConfigInvalidImageFormat
+	}
+
+	if cfg.Image.MaxDimention < 1000 || cfg.Image.MaxDimention > 10000 {
+		return errs.ErrConfigImageDimentionOutOfRange
 	}
 
 	return nil

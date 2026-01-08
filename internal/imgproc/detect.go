@@ -14,17 +14,22 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
-func MimeType(data []byte) (string, error) {
+func ImageConfig(data []byte) (Extension string, Width int, Height int, Error error) {
 
-	_, ext, err := image.DecodeConfig(bytes.NewReader(data))
+	imgCfg, ext, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return "", err
+		return "", 0, 0, err
 	}
 
-	mimeType, ok := supportedFormats[ImgFormat(ext)]
+	_, ok := supportedFormats[ImgFormat(ext)]
 	if !ok {
-		return "", fmt.Errorf("image fomat %s: %w", ext, errs.ErrUnsupportedImageFormat)
+		return "", 0, 0, fmt.Errorf("image format %s: %w", ext, errs.ErrUnsupportedImageFormat)
 	}
 
-	return mimeType, nil
+	return ext, imgCfg.Width, imgCfg.Height, nil
+}
+
+func SupportedFormat(ext string) bool {
+	_, ok := supportedFormats[ImgFormat(ext)]
+	return ok
 }

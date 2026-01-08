@@ -98,7 +98,6 @@ func copyFileData(fd *files.FileData) *files.FileData {
 func fileInfo(fd *files.FileData) *files.FileInfo {
 	value := files.FileInfo{
 		ID:        fd.ID,
-		MimeType:  fd.MimeType,
 		FileSize:  fd.FileSize,
 		CreatedAt: fd.CreatedAt,
 		UpdatedAt: fd.UpdatedAt,

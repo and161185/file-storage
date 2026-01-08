@@ -24,7 +24,7 @@ func main() {
 	log := logger.New(&config.Log).With("service", "file-storage")
 
 	storage := inmemory.New()
-	svc := files.NewService(storage)
+	svc := files.NewService(&config.Image, storage)
 	srv := server.NewServer(&config.App, svc, log)
 
 	ctx := context.Background()
