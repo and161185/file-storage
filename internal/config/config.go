@@ -225,7 +225,7 @@ func validate(cfg *Config) error {
 		return errs.ErrConfigWrongLogLevel
 	}
 
-	if !imgproc.SupportedFormat(cfg.Image.Ext) {
+	if _, ok := imgproc.SupportedOutputFormat(cfg.Image.Ext); !ok {
 		return errs.ErrConfigInvalidImageFormat
 	}
 

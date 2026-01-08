@@ -1,6 +1,7 @@
 package files
 
 import (
+	"file-storage/internal/imgproc"
 	"time"
 )
 
@@ -18,7 +19,7 @@ type FileData struct {
 	Hash      string
 	FileSize  int
 	IsImage   bool
-	Ext       string
+	Format    imgproc.ImgFormat
 	Width     int
 	Height    int
 	Metadata  map[string]any
@@ -30,10 +31,16 @@ type FileInfo struct {
 	ID        string
 	FileSize  int
 	IsImage   bool
-	Ext       string
+	Format    imgproc.ImgFormat
 	Width     int
 	Height    int
 	Metadata  map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type ImageInfo struct {
+	Format imgproc.ImgFormat
+	Width  int
+	Height int
 }

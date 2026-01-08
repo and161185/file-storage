@@ -19,3 +19,4 @@ var ErrMultipleIDsInQuery = errors.New("multiple id parameters are not allowed")
 var ErrWrongUrlParameter = errors.New("wrong url parameter")
 
 var ErrUnsupportedImageFormat = errors.New("unsupported image format")
+var ErrInvalidImage = errors.New("invalid image")

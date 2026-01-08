@@ -14,7 +14,7 @@ func getConfig() (*config.Config, error) {
 	pflag.Int("port", 0, "application port")
 	pflag.String("readtoken", "", "read token")
 	pflag.String("writetoken", "", "write token")
-	pflag.String("imageext", "webp", "stored image format")
+	pflag.String("imageext", "jpeg", "stored image format")
 	pflag.Int("imagemaxdimention", 2000, "max stored image dimention")
 	pflag.Parse()
 

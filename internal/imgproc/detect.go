@@ -8,28 +8,37 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"strings"
 
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
 )
 
-func ImageConfig(data []byte) (Extension string, Width int, Height int, Error error) {
+func ImageConfig(data []byte) (format ImgFormat, w, h int, err error) {
+
+	var emptyImgFormat ImgFormat
 
 	imgCfg, ext, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return "", 0, 0, err
+		return emptyImgFormat, 0, 0, err
 	}
 
-	_, ok := supportedFormats[ImgFormat(ext)]
+	ext = strings.ToLower(ext)
+	format, ok := SupportedInputFormat(ext)
 	if !ok {
-		return "", 0, 0, fmt.Errorf("image format %s: %w", ext, errs.ErrUnsupportedImageFormat)
+		return emptyImgFormat, 0, 0, fmt.Errorf("unsupported image format %s: %w", ext, errs.ErrUnsupportedImageFormat)
 	}
 
-	return ext, imgCfg.Width, imgCfg.Height, nil
+	return format, imgCfg.Width, imgCfg.Height, nil
 }
 
-func SupportedFormat(ext string) bool {
-	_, ok := supportedFormats[ImgFormat(ext)]
-	return ok
+func SupportedInputFormat(format string) (ImgFormat, bool) {
+	imgFormat, ok := supportedInputFormats[ImgFormat(format)]
+	return imgFormat, ok
+}
+
+func SupportedOutputFormat(format string) (ImgFormat, bool) {
+	imgFormat, ok := supportedOutputFormats[ImgFormat(format)]
+	return imgFormat, ok
 }
