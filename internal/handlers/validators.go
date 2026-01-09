@@ -88,9 +88,11 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 	switch {
 	case errors.Is(err, errs.ErrHashMismatch),
 		errors.Is(err, errs.ErrNoDataToUpload),
-		errors.Is(err, errs.ErrMissingIdToUpdateMetadata):
+		errors.Is(err, errs.ErrMissingIdToUpdateMetadata),
+		errors.Is(err, errs.ErrInvalidImage):
 		return http.StatusUnprocessableEntity, true
-	case errors.Is(err, errs.ErrNotSupportedImageType):
+	case errors.Is(err, errs.ErrNotSupportedImageType),
+		errors.Is(err, errs.ErrUnsupportedImageFormat):
 		return http.StatusUnsupportedMediaType, true
 	case errors.Is(err, errs.ErrWrongIDLength),
 		errors.Is(err, errs.ErrMultipleIDsInQuery):

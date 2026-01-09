@@ -17,11 +17,11 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 
 	format, width, height, err := imgproc.ImageConfig(b)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("config observing error: %w", err)
 	}
 
 	if width <= 0 || height <= 0 {
-		return nil, nil, errs.ErrInvalidImage
+		return nil, nil, fmt.Errorf("invalid image dimentions: %w", errs.ErrInvalidImage)
 	}
 
 	multiplierW := float64(wantWidth) / float64(width)
@@ -41,7 +41,7 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 	reader := bytes.NewReader(b)
 	img, err := imaging.Decode(reader)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("decode image error: %w", err)
 	}
 
 	if multiplier < 1 {
@@ -50,12 +50,12 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 
 	imagingFormat, err := imgproc.ImagingOutputFormat(wantFormat)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("output format error: %w", err)
 	}
 
 	result, err := imgproc.Encode(img, imagingFormat)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("encode image error: %w", err)
 	}
 
 	imageInfo := ImageInfo{

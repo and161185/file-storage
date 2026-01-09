@@ -2,6 +2,7 @@ package files
 
 import (
 	"file-storage/internal/imgproc"
+	"io"
 	"time"
 )
 
@@ -11,6 +12,13 @@ type UploadCommand struct {
 	Hash     string
 	IsImage  bool
 	Metadata map[string]any
+}
+
+type ContentCommand struct {
+	ID     string
+	Width  *int
+	Height *int
+	Format *string
 }
 
 type FileData struct {
@@ -37,6 +45,11 @@ type FileInfo struct {
 	Metadata  map[string]any
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type ContentData struct {
+	Data    io.ReadCloser
+	IsImage bool
 }
 
 type ImageInfo struct {

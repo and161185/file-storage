@@ -51,7 +51,7 @@ func (s *MemoryStorage) Info(ctx context.Context, ID string) (*files.FileInfo, e
 	return fileInfo(fd), nil
 }
 
-func (s *MemoryStorage) Content(ctx context.Context, ID string) (io.ReadCloser, error) {
+func (s *MemoryStorage) Content(ctx context.Context, ID string) (*files.ContentData, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]
 	s.mu.RUnlock()
@@ -63,7 +63,12 @@ func (s *MemoryStorage) Content(ctx context.Context, ID string) (io.ReadCloser, 
 	b := make([]byte, len(fd.Data))
 	copy(b, fd.Data)
 
-	return io.NopCloser(bytes.NewReader(b)), nil
+	cd := files.ContentData{
+		Data:    io.NopCloser(bytes.NewReader(b)),
+		IsImage: fd.IsImage,
+	}
+
+	return &cd, nil
 }
 
 func (s *MemoryStorage) Delete(ctx context.Context, ID string) error {

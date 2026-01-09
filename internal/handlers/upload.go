@@ -15,7 +15,6 @@ import (
 func UploadHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ur models.UploadRequest
-		var uc files.UploadCommand
 
 		ctx := r.Context()
 		log := logger.FromContext(ctx)
@@ -51,6 +50,7 @@ func UploadHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
+		var uc files.UploadCommand
 		uc.ID = ur.ID
 		uc.Hash = ur.Hash
 		uc.Data = ur.Data
@@ -64,7 +64,8 @@ func UploadHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Reque
 
 		ID, err := svc.Update(ctx, &uc)
 		if err != nil {
-			//TODO map busines errors
+			handleBusinessError(w, log, err)
+			return
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -83,6 +84,29 @@ func handleValidationError(w http.ResponseWriter, log *slog.Logger, err error) {
 		log.Warn("unhandled error", slog.Any(logger.LogFieldError, err))
 	}
 
-	http.Error(w, err.Error(), status)
+	writeErrorResponse(w, err, status)
+
+}
+
+func handleBusinessError(w http.ResponseWriter, log *slog.Logger, err error) {
+
+	log.Error("execution error", slog.Any(logger.LogFieldError, err))
+
+	status, handledError := mapErrorToHttpStatus(err)
+	if !handledError {
+		log.Error("internal error", slog.Any(logger.LogFieldError, err))
+	}
+
+	writeErrorResponse(w, err, status)
+
+}
+
+func writeErrorResponse(w http.ResponseWriter, err error, status int) {
+
+	if status >= 500 {
+		http.Error(w, http.StatusText(status), status)
+	} else {
+		http.Error(w, err.Error(), status)
+	}
 
 }
