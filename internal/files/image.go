@@ -9,10 +9,10 @@ import (
 	"github.com/disintegration/imaging"
 )
 
-func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]byte, *ImageInfo, error) {
-	wantFormat, ok := imgproc.SupportedOutputFormat(wantExt)
+func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int) ([]byte, *ImageInfo, error) {
+	targetFormat, ok := imgproc.SupportedOutputFormat(targetExt)
 	if !ok {
-		return nil, nil, fmt.Errorf("unsupported want image format %s: %w", wantExt, errs.ErrUnsupportedImageFormat)
+		return nil, nil, fmt.Errorf("unsupported target image format %s: %w", targetExt, errs.ErrUnsupportedImageFormat)
 	}
 
 	format, width, height, err := imgproc.ImageConfig(b)
@@ -24,11 +24,11 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 		return nil, nil, fmt.Errorf("invalid image dimentions: %w", errs.ErrInvalidImage)
 	}
 
-	multiplierW := float64(wantWidth) / float64(width)
-	multiplierH := float64(wantHeight) / float64(height)
+	multiplierW := float64(targetWidth) / float64(width)
+	multiplierH := float64(targetHeight) / float64(height)
 	multiplier := min(multiplierW, multiplierH)
 
-	if format == wantFormat && multiplier >= 1 {
+	if format == targetFormat && multiplier >= 1 {
 		imageInfo := ImageInfo{
 			Format: format,
 			Width:  width,
@@ -36,6 +36,11 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 		}
 
 		return b, &imageInfo, nil
+	}
+
+	imagingFormat, err := imgproc.ImagingOutputFormat(targetFormat)
+	if err != nil {
+		return nil, nil, fmt.Errorf("output format error: %w", err)
 	}
 
 	reader := bytes.NewReader(b)
@@ -48,18 +53,13 @@ func ProcessImage(b []byte, wantExt string, wantWidth int, wantHeight int) ([]by
 		img = imgproc.Resize(img, multiplier)
 	}
 
-	imagingFormat, err := imgproc.ImagingOutputFormat(wantFormat)
-	if err != nil {
-		return nil, nil, fmt.Errorf("output format error: %w", err)
-	}
-
 	result, err := imgproc.Encode(img, imagingFormat)
 	if err != nil {
 		return nil, nil, fmt.Errorf("encode image error: %w", err)
 	}
 
 	imageInfo := ImageInfo{
-		Format: wantFormat,
+		Format: targetFormat,
 		Width:  img.Bounds().Dx(),
 		Height: img.Bounds().Dy(),
 	}

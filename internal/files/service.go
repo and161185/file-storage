@@ -109,3 +109,23 @@ func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, erro
 
 	return b, nil
 }
+
+func (s *Service) Info(ctx context.Context, ID string) (*FileInfo, error) {
+
+	fi, err := s.storage.Info(ctx, ID)
+	if err != nil {
+		return nil, fmt.Errorf("storage error: %w", err)
+	}
+
+	return fi, nil
+}
+
+func (s *Service) Delete(ctx context.Context, ID string) error {
+
+	err := s.storage.Delete(ctx, ID)
+	if err != nil {
+		return fmt.Errorf("storage error: %w", err)
+	}
+
+	return nil
+}

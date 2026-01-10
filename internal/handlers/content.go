@@ -49,7 +49,14 @@ func ContentHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Requ
 			Format: cr.Format,
 		}
 
-		svc.Content(ctx, &cc)
+		content, err := svc.Content(ctx, &cc)
+		if err != nil {
+			handleBusinessError(w, log, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		w.Write(content)
 	}
 }
 

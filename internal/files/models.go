@@ -36,15 +36,15 @@ type FileData struct {
 }
 
 type FileInfo struct {
-	ID        string
-	FileSize  int
-	IsImage   bool
-	Format    imgproc.ImgFormat
-	Width     int
-	Height    int
-	Metadata  map[string]any
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        string            `json:"id"`
+	FileSize  int               `json:"file_size"`
+	IsImage   bool              `json:"is_image"`
+	Format    imgproc.ImgFormat `json:"format"`
+	Width     int               `json:"width"`
+	Height    int               `json:"height"`
+	Metadata  map[string]any    `json:"metadata"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
 }
 
 type ContentData struct {

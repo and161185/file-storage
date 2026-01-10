@@ -1,39 +1,64 @@
 package handlers
 
 import (
+	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
+	"file-storage/internal/files"
 	"file-storage/internal/logger"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
 	"github.com/go-chi/chi"
 )
 
-func InfoHandler(w http.ResponseWriter, r *http.Request) {
-	log := logger.FromContext(r.Context())
-	log = logger.WithHandler(log, logger.HandlerDelete)
+func InfoHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-	auth, ok := r.Context().Value(contextkeys.ContextKeyAuth).(authorization.Auth)
-	if !ok {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Error("failed to get Auth structure out of context")
-		return
+		log := logger.FromContext(ctx)
+		log = logger.WithHandler(log, logger.HandlerDelete)
+
+		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(authorization.Auth)
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Error("failed to get Auth structure out of context")
+			return
+		}
+		if !auth.Read {
+			w.WriteHeader(http.StatusForbidden)
+			log.Warn("read access denied")
+			return
+		}
+
+		ID := strings.TrimSpace(chi.URLParam(r, "id"))
+
+		err := validateID(ID)
+		if err != nil {
+			handleValidationError(w, log, err)
+			return
+		}
+
+		fi, err := svc.Info(ctx, ID)
+		if err != nil {
+			handleBusinessError(w, log, err)
+			return
+		}
+
+		body, err := json.Marshal(fi)
+		if err != nil {
+			handleBusinessError(w, log, fmt.Errorf("marshalling error: %w", err))
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write([]byte(body))
+		if err != nil {
+			log.Error("write body error", slog.Any(logger.LogFieldError, err))
+		}
+
 	}
-	if !auth.Read {
-		w.WriteHeader(http.StatusForbidden)
-		log.Warn("read access denied")
-		return
-	}
-
-	ID := strings.TrimSpace(chi.URLParam(r, "id"))
-
-	err := validateID(ID)
-	if err != nil {
-		handleValidationError(w, log, err)
-		return
-	}
-
-	//ID := IDs[0]
-	//TODO business logic deletion
 }

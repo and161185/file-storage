@@ -7,6 +7,7 @@ import (
 	"file-storage/internal/files"
 	"file-storage/internal/handlers/models"
 	"file-storage/internal/logger"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -68,9 +69,18 @@ func UploadHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Reque
 			return
 		}
 
+		body, err := json.Marshal(map[string]string{"id": ID})
+		if err != nil {
+			handleBusinessError(w, log, fmt.Errorf("marshalling error: %w", err))
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"id": ID})
+		_, err = w.Write([]byte(body))
+		if err != nil {
+			log.Error("write body error", slog.Any(logger.LogFieldError, err))
+		}
 
 	}
 }
