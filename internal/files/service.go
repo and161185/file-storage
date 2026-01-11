@@ -97,7 +97,7 @@ func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, erro
 
 	b, err := io.ReadAll(cd.Data)
 	if err != nil {
-		return nil, fmt.Errorf("data read error: %w", err)
+		return nil, fmt.Errorf("data read error: %w: %v", errs.ErrInvalidFileData, err)
 	}
 
 	if cd.IsImage {

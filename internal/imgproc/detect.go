@@ -21,7 +21,7 @@ func ImageConfig(data []byte) (format ImgFormat, w, h int, err error) {
 
 	imgCfg, ext, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
-		return emptyImgFormat, 0, 0, err
+		return emptyImgFormat, 0, 0, fmt.Errorf("decode image error: %w: %v", errs.ErrInvalidImage, err)
 	}
 
 	ext = strings.ToLower(ext)

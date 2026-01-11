@@ -28,7 +28,7 @@ func TestProcessImage(t *testing.T) {
 		t.Fatalf("test image creation error: %v", err)
 	}
 
-	bBadConfig := b[1:]
+	bBadConfig := []byte("not an image")
 	bBadBody := b[:len(b)-2]
 
 	table := []struct {
@@ -39,7 +39,7 @@ func TestProcessImage(t *testing.T) {
 		targetHeight  int
 		wantb         []byte
 		wantImageInfo *ImageInfo
-		controlErr    bool
+		checkErrType  bool
 		wantErr       error
 	}{
 		{
@@ -50,8 +50,19 @@ func TestProcessImage(t *testing.T) {
 			targetHeight:  1,
 			wantb:         nil,
 			wantImageInfo: nil,
-			controlErr:    true,
+			checkErrType:  true,
 			wantErr:       errs.ErrUnsupportedImageFormat,
+		},
+		{
+			name:          "invalid target width",
+			b:             b,
+			targetExt:     "bmp",
+			targetWidth:   -50,
+			targetHeight:  1,
+			wantb:         nil,
+			wantImageInfo: nil,
+			checkErrType:  true,
+			wantErr:       errs.ErrInvalidImage,
 		},
 		{
 			name:          "config observing error",
@@ -61,7 +72,7 @@ func TestProcessImage(t *testing.T) {
 			targetHeight:  100,
 			wantb:         nil,
 			wantImageInfo: nil,
-			controlErr:    false,
+			checkErrType:  false,
 			wantErr:       errors.New(""),
 		},
 		{
@@ -72,7 +83,7 @@ func TestProcessImage(t *testing.T) {
 			targetHeight:  100,
 			wantb:         nil,
 			wantImageInfo: nil,
-			controlErr:    false,
+			checkErrType:  false,
 			wantErr:       errors.New(""),
 		},
 		{
@@ -83,7 +94,7 @@ func TestProcessImage(t *testing.T) {
 			targetHeight:  h,
 			wantb:         b,
 			wantImageInfo: &ImageInfo{Format: imgproc.ImgFormat(format), Width: w, Height: h},
-			controlErr:    true,
+			checkErrType:  true,
 			wantErr:       nil,
 		},
 		{
@@ -94,7 +105,7 @@ func TestProcessImage(t *testing.T) {
 			targetHeight:  h / 2,
 			wantb:         nil,
 			wantImageInfo: &ImageInfo{Format: imgproc.ImgFormat("bmp"), Width: w / 2, Height: h / 2},
-			controlErr:    true,
+			checkErrType:  true,
 			wantErr:       nil,
 		},
 	}
@@ -111,7 +122,7 @@ func TestProcessImage(t *testing.T) {
 				}
 			}
 			if tt.wantErr != nil {
-				if tt.controlErr {
+				if tt.checkErrType {
 					if !errors.Is(err, tt.wantErr) {
 						t.Errorf("errors mismatch got %v want %v", err, tt.wantErr)
 					}

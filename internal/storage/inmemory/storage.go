@@ -104,6 +104,10 @@ func fileInfo(fd *files.FileData) *files.FileInfo {
 	value := files.FileInfo{
 		ID:        fd.ID,
 		FileSize:  fd.FileSize,
+		IsImage:   fd.IsImage,
+		Format:    fd.Format,
+		Width:     fd.Width,
+		Height:    fd.Height,
 		CreatedAt: fd.CreatedAt,
 		UpdatedAt: fd.UpdatedAt,
 	}

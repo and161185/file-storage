@@ -21,7 +21,11 @@ func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int)
 	}
 
 	if width <= 0 || height <= 0 {
-		return nil, nil, fmt.Errorf("invalid image dimentions: %w", errs.ErrInvalidImage)
+		return nil, nil, fmt.Errorf("invalid image dimensions: %w", errs.ErrInvalidImage)
+	}
+
+	if targetWidth <= 0 || targetHeight <= 0 {
+		return nil, nil, fmt.Errorf("invalid target image dimensions: %w", errs.ErrInvalidImage)
 	}
 
 	multiplierW := float64(targetWidth) / float64(width)

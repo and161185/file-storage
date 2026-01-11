@@ -3,6 +3,7 @@ package inmemory
 import (
 	"bytes"
 	"context"
+	"errors"
 	"file-storage/internal/errs"
 	"file-storage/internal/files"
 	"io"
@@ -46,7 +47,7 @@ func TestUpsert(t *testing.T) {
 			if id != tt.wantID {
 				t.Errorf("upsert id mismatch got %s want %s", id, tt.wantID)
 			}
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("upsert error mismatch got %v want %v", err, tt.wantErr)
 			}
 		})
@@ -91,7 +92,7 @@ func TestInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fi, err := s.Info(ctx, tt.id)
 
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("got error %v want %v", err, tt.wantErr)
 			}
 
@@ -137,7 +138,7 @@ func TestContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			cd, err := s.Content(ctx, tt.id)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("got error %v want %v", err, tt.wantErr)
 			}
 			if !equalContentData(cd, tt.wantContentData) {
@@ -164,11 +165,13 @@ func equalContentData(a *files.ContentData, b *files.ContentData) bool {
 	if err != nil {
 		return false
 	}
+	defer a.Data.Close()
 
 	bData, err := io.ReadAll(b.Data)
 	if err != nil {
 		return false
 	}
+	defer b.Data.Close()
 
 	return bytes.Equal(aData, bData)
 }
@@ -204,7 +207,7 @@ func TestDelete(t *testing.T) {
 			s.Delete(ctx, tt.id)
 
 			_, err := s.Info(ctx, tt.id)
-			if err != tt.wantInfoErr {
+			if !errors.Is(err, tt.wantInfoErr) {
 				t.Errorf("got info err %v want %v", err, tt.wantInfoErr)
 			}
 
