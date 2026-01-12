@@ -104,7 +104,7 @@ func handleBusinessError(w http.ResponseWriter, log *slog.Logger, err error) {
 
 	status, handledError := mapErrorToHttpStatus(err)
 	if !handledError {
-		log.Error("internal error", slog.Any(logger.LogFieldError, err))
+		log.Error("unhandled internal error", slog.Any(logger.LogFieldError, err))
 	}
 
 	writeErrorResponse(w, err, status)

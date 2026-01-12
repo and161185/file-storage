@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/disintegration/imaging"
@@ -307,14 +308,8 @@ func TestInfo(t *testing.T) {
 
 			fi, err := s.Info(ctx, tt.id)
 
-			if fi != tt.wantFileInfo {
-				if fi == nil || tt.wantFileInfo == nil {
-					t.Errorf("info result mismatch got %v want %v", fi, tt.wantFileInfo)
-				} else {
-					if fi.ID != tt.wantFileInfo.ID {
-						t.Errorf("info result mismatch got %v want %v", fi, tt.wantFileInfo)
-					}
-				}
+			if !reflect.DeepEqual(fi, tt.wantFileInfo) {
+				t.Errorf("info result mismatch got %v want %v", fi, tt.wantFileInfo)
 			}
 
 			if !errors.Is(err, tt.wantError) {
