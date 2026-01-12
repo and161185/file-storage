@@ -266,3 +266,102 @@ func TestContent(t *testing.T) {
 		})
 	}
 }
+
+func TestInfo(t *testing.T) {
+	cfg := config.Image{Ext: "jpeg", MaxDimention: 1000}
+	ctx := context.Background()
+
+	storageError := fmt.Errorf("storage error")
+
+	table := []struct {
+		name         string
+		storage      *mockStorage
+		id           string
+		wantError    error
+		wantFileInfo *files.FileInfo
+	}{
+		{
+			name: "storage error",
+			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
+				return nil, storageError
+			}},
+			id:           "1",
+			wantError:    storageError,
+			wantFileInfo: nil,
+		},
+		{
+			name: "ok",
+			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
+				return &files.FileInfo{ID: "1"}, nil
+			}},
+			id:           "1",
+			wantError:    nil,
+			wantFileInfo: &files.FileInfo{ID: "1"},
+		},
+	}
+
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+
+			s := files.NewService(&cfg, tt.storage)
+
+			fi, err := s.Info(ctx, tt.id)
+
+			if fi != tt.wantFileInfo {
+				if fi == nil || tt.wantFileInfo == nil {
+					t.Errorf("info result mismatch got %v want %v", fi, tt.wantFileInfo)
+				} else {
+					if fi.ID != tt.wantFileInfo.ID {
+						t.Errorf("info result mismatch got %v want %v", fi, tt.wantFileInfo)
+					}
+				}
+			}
+
+			if !errors.Is(err, tt.wantError) {
+				t.Errorf("errors mismatch got %v want %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestDelete(t *testing.T) {
+
+	ctx := context.Background()
+	cfg := config.Image{Ext: "jpeg", MaxDimention: 1000}
+	storageError := fmt.Errorf("storage error")
+
+	table := []struct {
+		name    string
+		storage *mockStorage
+		id      string
+		wantErr error
+	}{
+		{
+			name: "storage error",
+			storage: &mockStorage{fnDelete: func(ctx context.Context, ID string) error {
+				return storageError
+			}},
+			id:      "1",
+			wantErr: storageError,
+		},
+		{
+			name: "ok",
+			storage: &mockStorage{fnDelete: func(ctx context.Context, ID string) error {
+				return nil
+			}},
+			id:      "1",
+			wantErr: nil,
+		},
+	}
+
+	for _, tt := range table {
+		t.Run(tt.name, func(t *testing.T) {
+			s := files.NewService(&cfg, tt.storage)
+			err := s.Delete(ctx, tt.id)
+
+			if !errors.Is(err, tt.wantErr) {
+				t.Errorf("errors mismatch got %v want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
