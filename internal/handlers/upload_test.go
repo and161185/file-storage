@@ -40,35 +40,35 @@ func TestUploadHandler(t *testing.T) {
 		{
 			name:       "no auth structure",
 			service:    &mockService{},
-			ctx:        newContext(nil),
+			ctx:        newContext(nil, nil),
 			request:    newHttpTestRequest("POST", "/", ""),
 			wantStatus: http.StatusInternalServerError,
 		},
 		{
 			name:       "no rights",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Write: false}),
+			ctx:        newContext(&authorization.Auth{Write: false}, nil),
 			request:    newHttpTestRequest("POST", "/", ""),
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "no body",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Write: true}),
+			ctx:        newContext(&authorization.Auth{Write: true}, nil),
 			request:    newHttpTestRequest("POST", "/", ""),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "invalid body",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Write: true}),
+			ctx:        newContext(&authorization.Auth{Write: true}, nil),
 			request:    newHttpTestRequest("POST", "/", "{}"),
 			wantStatus: http.StatusUnprocessableEntity,
 		},
 		{
 			name:       "invalid hash",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Write: true}),
+			ctx:        newContext(&authorization.Auth{Write: true}, nil),
 			request:    newHttpTestRequest("POST", "/", string(bodyInvalidHash)),
 			wantStatus: http.StatusUnprocessableEntity,
 		},
@@ -77,7 +77,7 @@ func TestUploadHandler(t *testing.T) {
 			service: &mockService{fnUpdate: func(ctx context.Context, uc *files.UploadCommand) (string, error) {
 				return "", errs.ErrUnsupportedImageFormat
 			}},
-			ctx:        newContext(&authorization.Auth{Write: true}),
+			ctx:        newContext(&authorization.Auth{Write: true}, nil),
 			request:    newHttpTestRequest("POST", "/", string(bodyOK)),
 			wantStatus: http.StatusUnsupportedMediaType,
 		},
@@ -86,7 +86,7 @@ func TestUploadHandler(t *testing.T) {
 			service: &mockService{fnUpdate: func(ctx context.Context, uc *files.UploadCommand) (string, error) {
 				return "", nil
 			}},
-			ctx:        newContext(&authorization.Auth{Write: true}),
+			ctx:        newContext(&authorization.Auth{Write: true}, nil),
 			request:    newHttpTestRequest("POST", "/", string(bodyOK)),
 			wantStatus: http.StatusOK,
 		},

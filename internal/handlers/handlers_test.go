@@ -9,6 +9,8 @@ import (
 	"file-storage/internal/logger"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/go-chi/chi"
 )
 
 type mockService struct {
@@ -37,13 +39,21 @@ func newHttpTestRequest(method, target, body string) *http.Request {
 	return httptest.NewRequest(method, target, reader)
 }
 
-func newContext(a *authorization.Auth) context.Context {
+func newContext(a *authorization.Auth, params map[string]string) context.Context {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, logger.NewBootstrap())
 
-	if a == nil {
-		return ctx
+	if a != nil {
+		ctx = context.WithValue(ctx, contextkeys.ContextKeyAuth, *a)
 	}
 
-	return context.WithValue(ctx, contextkeys.ContextKeyAuth, *a)
+	if params != nil {
+		rctx := chi.NewRouteContext()
+		for k, v := range params {
+			rctx.URLParams.Add(k, v)
+		}
+		ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	}
+
+	return ctx
 }
