@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-func UploadHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
+func UploadHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ur models.UploadRequest
 

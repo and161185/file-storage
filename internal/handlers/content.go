@@ -15,7 +15,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func ContentHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
+func ContentHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 

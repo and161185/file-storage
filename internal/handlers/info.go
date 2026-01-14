@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
-	"file-storage/internal/files"
 	"file-storage/internal/logger"
 	"fmt"
 	"log/slog"
@@ -14,7 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func InfoHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
+func InfoHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 

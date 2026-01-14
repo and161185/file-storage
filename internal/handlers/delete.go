@@ -3,7 +3,6 @@ package handlers
 import (
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
-	"file-storage/internal/files"
 	"file-storage/internal/logger"
 	"net/http"
 	"strings"
@@ -11,7 +10,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-func DeleteHandler(svc *files.Service) func(w http.ResponseWriter, r *http.Request) {
+func DeleteHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
