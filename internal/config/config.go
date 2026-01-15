@@ -3,6 +3,7 @@ package config
 import (
 	"file-storage/internal/errs"
 	"file-storage/internal/imgproc"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -231,6 +232,14 @@ func validate(cfg *Config) error {
 
 	if cfg.Image.MaxDimention < 1000 || cfg.Image.MaxDimention > 10000 {
 		return errs.ErrConfigImageDimentionOutOfRange
+	}
+
+	if cfg.Security.ReadToken == "" {
+		return fmt.Errorf("read token not set : %w", errs.ErrTokenNotSet)
+	}
+
+	if cfg.Security.WriteToken == "" {
+		return fmt.Errorf("write token not set : %w", errs.ErrTokenNotSet)
 	}
 
 	return nil

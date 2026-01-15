@@ -3,3 +3,9 @@ app:
 log:
   level: "info"
   type: "json"
+security:
+  read_token: "123"
+  write_token: "321"
+image:
+  ext: "jpeg"
+  max_dimention: 2000
