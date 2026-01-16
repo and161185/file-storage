@@ -1,3 +1,4 @@
+// Package server assembles and runs the file service application.
 package server
 
 import (

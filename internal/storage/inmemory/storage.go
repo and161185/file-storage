@@ -1,3 +1,7 @@
+// Package inmemory provides an in-memory storage implementation.
+//
+// The package is intended for testing and development
+// and should not be used as a production storage.
 package inmemory
 
 import (

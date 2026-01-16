@@ -1,3 +1,4 @@
+// Package logger provides logger constructors and helper functions.
 package logger
 
 import (
