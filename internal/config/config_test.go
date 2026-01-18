@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -19,7 +20,7 @@ func TestNewConfig(t *testing.T) {
 	cfg.Log.Level = LogLevelWarn
 	cfg.Log.Type = LogTypeText
 	cfg.Image.MaxDimention = 2000
-	cfg.Security.ReadToken = "22"
+	cfg.App.Security.ReadToken = "22"
 
 	path := filepath.Join(tmpdir, "config.yaml")
 	bytes, err := yaml.Marshal(&cfg)
@@ -147,6 +148,12 @@ func TestApplyEnv(t *testing.T) {
 	}
 	defer os.Unsetenv("FILE_STORAGE_LOG_TYPE")
 
+	err = os.Setenv("FILE_STORAGE_TIMEOUT", "5s")
+	if err != nil {
+		t.Fatalf("set FILE_STORAGE_TIMEOUT error: %s", err)
+	}
+	defer os.Unsetenv("FILE_STORAGE_TIMEOUT")
+
 	err = applyEnv(&cfg)
 	if err != nil {
 		t.Fatalf("applyEnv error: %s", err)
@@ -154,6 +161,9 @@ func TestApplyEnv(t *testing.T) {
 
 	if cfg.App.Port != 5 {
 		t.Errorf("expect port 5 got %d", cfg.App.Port)
+	}
+	if cfg.App.Timeout != 5*time.Second {
+		t.Errorf("expect timeout %v got %v", 5*time.Second, cfg.App.Timeout)
 	}
 	if cfg.Log.Level != LogLevelWarn {
 		t.Errorf("expect log level 'warn' got %s", cfg.Log.Level)
@@ -170,11 +180,13 @@ func TestApplyFlags(t *testing.T) {
 	pflag.String("loglevel", "info", "log level")
 	pflag.String("logtype", "json", "log type")
 	pflag.Int("port", 0, "application port")
+	pflag.Int("sizelimit", 0, "max file size")
 
 	pflag.Set("config", "C:/config.txt")
 	pflag.Set("loglevel", LogLevelWarn)
 	pflag.Set("logtype", LogTypeText)
 	pflag.Set("port", "5")
+	pflag.Set("sizelimit", "1000")
 
 	err := applyFlags(&cfg)
 	if err != errs.ErrConfigFlagsNotParsed {
@@ -190,6 +202,9 @@ func TestApplyFlags(t *testing.T) {
 
 	if cfg.App.Port != 5 {
 		t.Errorf("expect port 5 got %d", cfg.App.Port)
+	}
+	if cfg.App.SizeLimit != 1000 {
+		t.Errorf("expect port 1000 got %d", cfg.App.SizeLimit)
 	}
 	if cfg.Log.Level != LogLevelWarn {
 		t.Errorf("expect log level 'warn' got %s", cfg.Log.Level)
@@ -207,58 +222,79 @@ func TestValidate(t *testing.T) {
 	}{
 		{
 			name: "app port < 0",
-			cfg: Config{App: App{Port: -2},
-				Log:      Log{Level: LogLevelDebug, Type: LogTypeJSON},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     -2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: errs.ErrConfigPortOutOfRange,
 		},
 		{
 			name: "app port > 65535",
-			cfg: Config{App: App{Port: 65536},
-				Log:      Log{Level: LogLevelDebug, Type: LogTypeJSON},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     65536,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: errs.ErrConfigPortOutOfRange,
 		},
 		{
 			name: "log level incorrect",
-			cfg: Config{App: App{Port: 2},
-				Log:      Log{Level: "asd", Type: LogTypeJSON},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: "asd", Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: errs.ErrConfigWrongLogLevel,
 		},
 		{
 			name: "log type incorrect",
-			cfg: Config{App: App{Port: 2},
-				Log:      Log{Level: LogLevelDebug, Type: "jjson"},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: "jjson"},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: errs.ErrConfigWrongLogType,
 		},
 		{
 			name: "invalid image format",
-			cfg: Config{App: App{Port: 2},
-				Log:      Log{Level: LogLevelDebug, Type: LogTypeJSON},
-				Image:    Image{Ext: "jpegd", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpegd", MaxDimention: 2000},
+			},
 			want: errs.ErrConfigInvalidImageFormat,
 		},
 		{
 			name: "token not set",
-			cfg: Config{App: App{Port: 2},
-				Log:      Log{Level: LogLevelDebug, Type: LogTypeJSON},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     2,
+					Security: Security{ReadToken: "", WriteToken: ""}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: errs.ErrTokenNotSet,
 		},
 		{
 			name: "ok",
-			cfg: Config{App: App{Port: 2},
-				Log:      Log{Level: LogLevelDebug, Type: LogTypeJSON},
-				Image:    Image{Ext: "jpeg", MaxDimention: 2000},
-				Security: Security{ReadToken: "1", WriteToken: "2"}},
+			cfg: Config{
+				App: App{
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
 			want: nil,
 		},
 	}

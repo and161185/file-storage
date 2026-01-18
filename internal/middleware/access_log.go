@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// AccessLog middleware logs incoming requests and responses.
 func AccessLog(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log := logger.FromContext(r.Context())

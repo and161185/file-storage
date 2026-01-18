@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Authorization middleware resolves access permissions and stores them in context.
 func Authorization(security config.Security) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

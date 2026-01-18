@@ -4,6 +4,7 @@ import (
 	"context"
 )
 
+// Storage defines persistence operations required by the business layer.
 type Storage interface {
 	Upsert(ctx context.Context, fd *FileData) (string, error)
 	Info(ctx context.Context, ID string) (*FileInfo, error)

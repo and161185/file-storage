@@ -6,10 +6,10 @@ import (
 	"file-storage/internal/logger"
 	"file-storage/internal/server"
 	"file-storage/internal/storage/inmemory"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -33,14 +33,27 @@ func main() {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.Run(ctx)
+		errCh <- srv.Run(ctx, config.App.Security)
 	}()
 
 	select {
 	case <-ctx.Done():
-		fmt.Print("")
+		shutdown(srv, nil)
 	case err := <-errCh:
-		fmt.Print(err.Error())
+		shutdown(srv, err)
 	}
+}
 
+func shutdown(srv *server.Server, runErr error) {
+	if runErr == nil {
+		srv.Log.Info("server shutdown")
+	} else {
+		srv.Log.Error("server execution error", logger.LogFieldError, runErr)
+	}
+	shutdownCtx, cancelFunc := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFunc()
+	err := srv.Shutdown(shutdownCtx)
+	if err != nil {
+		srv.Log.Error("server shutdown error", logger.LogFieldError, err)
+	}
 }

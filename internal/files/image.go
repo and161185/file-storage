@@ -9,6 +9,7 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+// ProcessImage converts image data to requested format and size
 func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int) ([]byte, *ImageInfo, error) {
 	targetFormat, ok := imgproc.SupportedOutputFormat(targetExt)
 	if !ok {

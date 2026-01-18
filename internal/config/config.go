@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
@@ -25,7 +26,10 @@ const (
 )
 
 type App struct {
-	Port int `json:"port" yaml:"port"`
+	Port      int           `json:"port" yaml:"port"`
+	Timeout   time.Duration `json:"timeout" yaml:"timeout"`
+	SizeLimit int           `json:"size_limit" yaml:"size_limit"`
+	Security  Security      `json:"security" yaml:"security"`
 }
 
 type Log struct {
@@ -44,12 +48,12 @@ type Image struct {
 }
 
 type Config struct {
-	App      App      `json:"app" yaml:"app"`
-	Log      Log      `json:"log" yaml:"log"`
-	Security Security `json:"security" yaml:"security"`
-	Image    Image    `json:"image" yaml:"image"`
+	App   App   `json:"app" yaml:"app"`
+	Log   Log   `json:"log" yaml:"log"`
+	Image Image `json:"image" yaml:"image"`
 }
 
+// NewConfig loads, merges and validates app configuration
 func NewConfig(configPath string) (*Config, error) {
 
 	cfg := defaults()
@@ -117,6 +121,34 @@ func applyEnv(cfg *Config) error {
 		cfg.App.Port = port
 	}
 
+	sSizeLimit := os.Getenv("FILE_STORAGE_SIZE_LIMIT")
+	if sSizeLimit != "" {
+		sizeLimit, err := strconv.Atoi(sSizeLimit)
+		if err != nil {
+			return err
+		}
+		cfg.App.SizeLimit = sizeLimit
+	}
+
+	sTimeout := os.Getenv("FILE_STORAGE_TIMEOUT")
+	if sTimeout != "" {
+		timeout, err := time.ParseDuration(sTimeout)
+		if err != nil {
+			return err
+		}
+		cfg.App.Timeout = timeout
+	}
+
+	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
+	if sReadToken != "" {
+		cfg.App.Security.ReadToken = sReadToken
+	}
+
+	sWriteToken := os.Getenv("FILE_STORAGE_WRITE_TOKEN")
+	if sWriteToken != "" {
+		cfg.App.Security.WriteToken = sWriteToken
+	}
+
 	sLogLevel := os.Getenv("FILE_STORAGE_LOG_LEVEL")
 	if sLogLevel != "" {
 		cfg.Log.Level = sLogLevel
@@ -125,16 +157,6 @@ func applyEnv(cfg *Config) error {
 	sLogType := os.Getenv("FILE_STORAGE_LOG_TYPE")
 	if sLogType != "" {
 		cfg.Log.Type = sLogType
-	}
-
-	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
-	if sReadToken != "" {
-		cfg.Security.ReadToken = sReadToken
-	}
-
-	sWriteToken := os.Getenv("FILE_STORAGE_WRITE_TOKEN")
-	if sWriteToken != "" {
-		cfg.Security.WriteToken = sWriteToken
 	}
 
 	sImageExt := os.Getenv("FILE_STORAGE_IMAGE_EXT")
@@ -170,6 +192,36 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Port = port
 	}
 
+	fSizeLimit := pflag.Lookup("sizelimit")
+	if fSizeLimit != nil && fSizeLimit.Changed {
+		raw := fSizeLimit.Value.String()
+		sizeLimit, err := strconv.Atoi(raw)
+		if err != nil {
+			return err
+		}
+		cfg.App.SizeLimit = sizeLimit
+	}
+
+	fTimeout := pflag.Lookup("timeout")
+	if fTimeout != nil && fTimeout.Changed {
+		raw := fTimeout.Value.String()
+		timeout, err := time.ParseDuration(raw)
+		if err != nil {
+			return err
+		}
+		cfg.App.Timeout = timeout
+	}
+
+	fReadToken := pflag.Lookup("readtoken")
+	if fReadToken != nil && fReadToken.Changed {
+		cfg.App.Security.ReadToken = fReadToken.Value.String()
+	}
+
+	fWriteToken := pflag.Lookup("writetoken")
+	if fWriteToken != nil && fWriteToken.Changed {
+		cfg.App.Security.WriteToken = fWriteToken.Value.String()
+	}
+
 	fLogLevel := pflag.Lookup("loglevel")
 	if fLogLevel != nil && fLogLevel.Changed {
 		cfg.Log.Level = fLogLevel.Value.String()
@@ -178,16 +230,6 @@ func applyFlags(cfg *Config) error {
 	fLogType := pflag.Lookup("logtype")
 	if fLogType != nil && fLogType.Changed {
 		cfg.Log.Type = fLogType.Value.String()
-	}
-
-	fReadToken := pflag.Lookup("readtoken")
-	if fReadToken != nil && fReadToken.Changed {
-		cfg.Security.ReadToken = fReadToken.Value.String()
-	}
-
-	fWriteToken := pflag.Lookup("writetoken")
-	if fWriteToken != nil && fWriteToken.Changed {
-		cfg.Security.WriteToken = fWriteToken.Value.String()
 	}
 
 	fImageExt := pflag.Lookup("imageext")
@@ -234,11 +276,11 @@ func validate(cfg *Config) error {
 		return errs.ErrConfigImageDimentionOutOfRange
 	}
 
-	if cfg.Security.ReadToken == "" {
+	if cfg.App.Security.ReadToken == "" {
 		return fmt.Errorf("read token not set : %w", errs.ErrTokenNotSet)
 	}
 
-	if cfg.Security.WriteToken == "" {
+	if cfg.App.Security.WriteToken == "" {
 		return fmt.Errorf("write token not set : %w", errs.ErrTokenNotSet)
 	}
 

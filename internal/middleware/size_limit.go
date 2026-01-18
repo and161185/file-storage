@@ -5,6 +5,7 @@ import (
 	"strconv"
 )
 
+// SizeLimit middleware limits request body size.
 func SizeLimit(sizeLimit int64) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

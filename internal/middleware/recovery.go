@@ -7,6 +7,7 @@ import (
 	"runtime/debug"
 )
 
+// Recover middleware catches panics and returns internal server error.
 func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

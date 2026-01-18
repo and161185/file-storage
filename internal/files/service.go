@@ -23,6 +23,8 @@ func NewService(cfg *config.Image, storage Storage) *Service {
 	return &Service{cfg: cfg, storage: storage}
 }
 
+// Update validates input data and stores file content and metadata.
+// The operation is idempotent for the same file ID.
 func (s *Service) Update(ctx context.Context, uc *UploadCommand) (string, error) {
 
 	var imageInfo *ImageInfo
@@ -59,6 +61,8 @@ func (s *Service) Update(ctx context.Context, uc *UploadCommand) (string, error)
 	return ID, nil
 }
 
+// Content returns file content by ID with optional image transformations.
+// The method returns only file bytes.
 func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, error) {
 
 	var format string
@@ -110,6 +114,8 @@ func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, erro
 	return b, nil
 }
 
+// Info returns file metadata by ID.
+// The response does not contain file content.
 func (s *Service) Info(ctx context.Context, ID string) (*FileInfo, error) {
 
 	fi, err := s.storage.Info(ctx, ID)
@@ -120,6 +126,8 @@ func (s *Service) Info(ctx context.Context, ID string) (*FileInfo, error) {
 	return fi, nil
 }
 
+// Delete removes a file by ID.
+// The operation is idempotent for the same file ID.
 func (s *Service) Delete(ctx context.Context, ID string) error {
 
 	err := s.storage.Delete(ctx, ID)

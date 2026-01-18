@@ -15,6 +15,8 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// Content returns file content by ID.
+// The handler returns raw bytes and does not include metadata.
 func ContentHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

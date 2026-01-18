@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// Info returns file metadata by ID without file content.
 func InfoHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
