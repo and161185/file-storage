@@ -1,13 +1,16 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"file-storage/internal/config"
 	"file-storage/internal/files"
 	"file-storage/internal/logger"
 	"file-storage/internal/storage/inmemory"
 	"fmt"
+	"log"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -37,7 +40,11 @@ func TestServer(t *testing.T) {
 	srv := NewServer(&cfg.App, svc, log)
 
 	ctx := context.Background()
-	srv.Run(ctx, cfg.App.Security)
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.Run(ctx, cfg.App.Security)
+	}()
 
 	err := waitServerUp(5*time.Second, serverUrl)
 	if err != nil {
@@ -46,11 +53,19 @@ func TestServer(t *testing.T) {
 
 }
 
+func newHttpTestRequest(method, target, body string) *http.Request {
+	reader := bytes.NewReader([]byte(body))
+
+	return httptest.NewRequest(method, target, reader)
+}
+
 func waitServerUp(timeout time.Duration, serverUrl string) error {
 
 	deadline := time.Now().Add(timeout)
 
 	for {
+
+		log.Print("wait for server")
 
 		r, err := http.NewRequest("GET", serverUrl+"/files/1/info", nil)
 		if err != nil {

@@ -23,6 +23,8 @@ func main() {
 
 	log := logger.New(&config.Log).With("service", "file-storage")
 
+	logConfig(log, config)
+
 	storage := inmemory.New()
 	svc := files.NewService(&config.Image, storage)
 	srv := server.NewServer(&config.App, svc, log)

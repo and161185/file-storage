@@ -6,8 +6,8 @@ import (
 	"file-storage/internal/config"
 	"file-storage/internal/files"
 	"file-storage/internal/handlers"
-	"file-storage/internal/logger"
 	"file-storage/internal/middleware"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -19,6 +19,7 @@ import (
 
 type Server struct {
 	Service    *files.Service
+	host       string
 	port       int
 	sizelimit  int
 	timeout    time.Duration
@@ -48,9 +49,15 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	s.httpServer = &http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },
 		Handler:     r}
-	err := s.httpServer.ListenAndServe()
-	if err != http.ErrServerClosed {
-		s.Log.Error("listen and serve error", logger.LogFieldError, err)
+
+	listener, err := net.Listen("tcp", net.JoinHostPort(s.host, strconv.Itoa(s.port)))
+	if err != nil {
+		return fmt.Errorf("listen error: %w", err)
+	}
+	s.Log.Info("server listening")
+	err = s.httpServer.Serve(listener)
+	if err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("serve error: %w", err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package main
 
 import (
 	"file-storage/internal/config"
+	"log/slog"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -9,18 +10,17 @@ import (
 
 func getConfig() (*config.Config, error) {
 
-	const defaultSizeLimit = 10 * 1024 * 1024
-
 	configPathFlag := pflag.String("config", "", "config file path")
+	pflag.Int("port", 0, "application port")
+	pflag.String("host", "", "application host")
 	pflag.String("loglevel", "info", "log level")
 	pflag.String("logtype", "json", "log type")
-	pflag.Int("port", 0, "application port")
 	pflag.String("readtoken", "", "read token")
 	pflag.String("writetoken", "", "write token")
 	pflag.Duration("timeout", 5*time.Second, "request timeout")
-	pflag.Int("sizelimit", defaultSizeLimit, "sizelimit")
-	pflag.String("imageext", "jpeg", "stored image format")
-	pflag.Int("imagemaxdimention", 2000, "max stored image dimention")
+	pflag.Int("sizelimit", 0, "sizelimit")
+	pflag.String("imageext", "", "stored image format")
+	pflag.Int("imagemaxdimention", 0, "max stored image dimention")
 	pflag.Parse()
 
 	configPath := *configPathFlag
@@ -28,4 +28,15 @@ func getConfig() (*config.Config, error) {
 	cfg, err := config.NewConfig(configPath)
 
 	return cfg, err
+}
+
+func logConfig(log *slog.Logger, cfg *config.Config) {
+	log.Info("config",
+		"host", cfg.App.Host,
+		"port", cfg.App.Port,
+		"sizelimit", cfg.App.SizeLimit,
+		"timeout", cfg.App.Timeout,
+		"image ext", cfg.Image.Ext,
+		"image max dimention", cfg.Image.MaxDimention,
+	)
 }

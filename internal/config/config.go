@@ -26,6 +26,7 @@ const (
 )
 
 type App struct {
+	Host      string        `json:"host" yaml:"host"`
 	Port      int           `json:"port" yaml:"port"`
 	Timeout   time.Duration `json:"timeout" yaml:"timeout"`
 	SizeLimit int           `json:"size_limit" yaml:"size_limit"`
@@ -83,7 +84,26 @@ func NewConfig(configPath string) (*Config, error) {
 }
 
 func defaults() Config {
-	cfg := Config{Log: Log{Level: LogLevelInfo, Type: LogTypeJSON}, App: App{}}
+	const defaultSizeLimit = 10 * 1024 * 1024
+	cfg := Config{
+		Log: Log{
+			Level: LogLevelInfo,
+			Type:  LogTypeJSON,
+		},
+		App: App{
+			Host:      "127.0.0.1",
+			Port:      8080,
+			SizeLimit: defaultSizeLimit,
+			Timeout:   5 * time.Second,
+			Security: Security{
+				ReadToken:  "default token",
+				WriteToken: "default token",
+			},
+		},
+		Image: Image{
+			Ext:          "jpeg",
+			MaxDimention: 2000},
+	}
 	return cfg
 }
 
@@ -119,6 +139,11 @@ func applyEnv(cfg *Config) error {
 			return err
 		}
 		cfg.App.Port = port
+	}
+
+	sAppHost := os.Getenv("FILE_STORAGE_APP_HOST")
+	if sAppHost != "" {
+		cfg.App.Host = sAppHost
 	}
 
 	sSizeLimit := os.Getenv("FILE_STORAGE_SIZE_LIMIT")
@@ -192,6 +217,11 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Port = port
 	}
 
+	fHost := pflag.Lookup("readtoken")
+	if fHost != nil && fHost.Changed {
+		cfg.App.Host = fHost.Value.String()
+	}
+
 	fSizeLimit := pflag.Lookup("sizelimit")
 	if fSizeLimit != nil && fSizeLimit.Changed {
 		raw := fSizeLimit.Value.String()
@@ -256,8 +286,16 @@ func normalize(cfg *Config) {
 }
 
 func validate(cfg *Config) error {
+	if cfg.App.Host == "" {
+		return errs.ErrConfigHostNotSet
+	}
+
 	if cfg.App.Port < 1 || cfg.App.Port > 65535 {
 		return errs.ErrConfigPortOutOfRange
+	}
+
+	if cfg.App.Timeout <= 0 {
+		return errs.ErrConfigInvalidTimeout
 	}
 
 	if cfg.Log.Type != LogTypeJSON && cfg.Log.Type != LogTypeText {

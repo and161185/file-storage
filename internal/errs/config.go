@@ -3,7 +3,9 @@ package errs
 import "errors"
 
 var ErrConfigFlagsNotParsed = errors.New("flags not parsed")
+var ErrConfigHostNotSet = errors.New("host not set")
 var ErrConfigPortOutOfRange = errors.New("config app port out of range")
+var ErrConfigInvalidTimeout = errors.New("invalid timeout")
 var ErrConfigWrongLogLevel = errors.New("invalid config log level. should be debug or info or warn or error")
 var ErrConfigWrongLogType = errors.New("invalid config log type. should be json or text")
 var ErrConfigInvalidImageFormat = errors.New("invalid image format. Only bmp, jpg, png, gif, webp are supported")
