@@ -24,7 +24,7 @@ func ContentHandler(svc Service) http.HandlerFunc {
 		log := logger.FromContext(ctx)
 		log = logger.WithHandler(log, logger.HandlerContent)
 
-		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(authorization.Auth)
+		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Error("failed to get Auth structure out of context")

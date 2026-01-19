@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
 // Upload handles file upload or update requests.
@@ -22,7 +24,7 @@ func UploadHandler(svc Service) http.HandlerFunc {
 		log := logger.FromContext(ctx)
 		log = logger.WithHandler(log, logger.HandlerUpdate)
 
-		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(authorization.Auth)
+		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
 		if !ok {
 			w.WriteHeader(http.StatusInternalServerError)
 			log.Error("failed to get Auth structure out of context")
@@ -50,6 +52,10 @@ func UploadHandler(svc Service) http.HandlerFunc {
 		if err != nil {
 			handleValidationError(w, log, err)
 			return
+		}
+
+		if ur.ID == "" {
+			ur.ID = uuid.New().String()
 		}
 
 		var uc files.UploadCommand
