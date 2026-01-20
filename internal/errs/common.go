@@ -11,7 +11,6 @@ var ErrInvalidFileData = errors.New("invalid file data")
 
 var ErrHashMismatch = errors.New("provided hash doesn’t match calculated one")
 var ErrNoDataToUpload = errors.New("no data to upload")
-var ErrMissingIdToUpdateMetadata = errors.New("missing id to update metadata")
 var ErrNotSupportedImageType = errors.New("not supported image type")
 var ErrUnsupportedTypeInMetadata = errors.New("unsupported type in metadata")
 var ErrWrongIDLength = errors.New("wrong ID length")

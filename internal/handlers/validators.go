@@ -18,13 +18,8 @@ func validateUploadRequest(r *models.UploadRequest) error {
 	}
 
 	//nothig useful in query
-	if len(r.Data) == 0 && len(r.Metadata) == 0 {
+	if len(r.Data) == 0 {
 		return errs.ErrNoDataToUpload
-	}
-
-	//if no data the only thing we can do is update metadata
-	if len(r.Data) == 0 && r.ID == "" {
-		return errs.ErrMissingIdToUpdateMetadata
 	}
 
 	sum := sha256.Sum256(r.Data)
@@ -88,7 +83,6 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 	switch {
 	case errors.Is(err, errs.ErrHashMismatch),
 		errors.Is(err, errs.ErrNoDataToUpload),
-		errors.Is(err, errs.ErrMissingIdToUpdateMetadata),
 		errors.Is(err, errs.ErrInvalidImage):
 		return http.StatusUnprocessableEntity, true
 
@@ -100,6 +94,9 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 		errors.Is(err, errs.ErrMultipleIDsInQuery),
 		errors.Is(err, errs.ErrWrongUrlParameter):
 		return http.StatusBadRequest, true
+
+	case errors.Is(err, errs.ErrNotFound):
+		return http.StatusNotFound, true
 
 	default:
 		return http.StatusInternalServerError, false

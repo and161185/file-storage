@@ -16,16 +16,18 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
 )
 
 func TestServer_Authorization(t *testing.T) {
+
 	cfg := config.Config{
 		App: config.App{
 			Host:      "127.0.0.1",
-			Port:      8080,
+			Port:      8081,
 			Timeout:   5 * time.Second,
 			SizeLimit: 1024 * 1024,
 			Security: config.Security{
@@ -37,7 +39,7 @@ func TestServer_Authorization(t *testing.T) {
 		Image: config.Image{Ext: "jpeg", MaxDimention: 2000},
 	}
 
-	err := runServer(cfg)
+	err := runServer(cfg, t)
 	if err != nil {
 		t.Fatalf("run server error: %v", err)
 	}
@@ -51,22 +53,22 @@ func TestServer_Authorization(t *testing.T) {
 	}{
 		{
 			name:       "info",
-			request:    newRequest("Get", "http://"+serverUrl+"/files/1/info", nil, t),
+			request:    newRequest("GET", "http://"+serverUrl+"/files/1/info", nil, t),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "delete",
-			request:    newRequest("Get", "http://"+serverUrl+"/files/1/ideletefo", nil, t),
+			request:    newRequest("GET", "http://"+serverUrl+"/files/1/ideletefo", nil, t),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "content",
-			request:    newRequest("Get", "http://"+serverUrl+"/files/1/content", nil, t),
+			request:    newRequest("GET", "http://"+serverUrl+"/files/1/content", nil, t),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
 			name:       "upload",
-			request:    newRequest("Get", "http://"+serverUrl+"/files/upload", nil, t),
+			request:    newRequest("GET", "http://"+serverUrl+"/files/upload", nil, t),
 			wantStatus: http.StatusUnauthorized,
 		},
 	}
@@ -102,7 +104,7 @@ func TestServer_Lifecycle(t *testing.T) {
 		Image: config.Image{Ext: "jpeg", MaxDimention: 2000},
 	}
 
-	err := runServer(cfg)
+	err := runServer(cfg, t)
 	if err != nil {
 		t.Fatalf("run server error: %v", err)
 	}
@@ -116,7 +118,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	ur := models.UploadRequest{
 		ID:       "",
 		Data:     uploadData,
-		Metadata: map[string]any{"field1": 1, "field2": "2"},
+		Metadata: map[string]any{"field1": 0, "field2": "0"},
 	}
 	sum := sha256.Sum256(ur.Data)
 	ur.Hash = hex.EncodeToString(sum[:])
@@ -177,11 +179,12 @@ func TestServer_Lifecycle(t *testing.T) {
 	//upload 2
 	uploadData2 := []byte("updated data")
 	ur2 := models.UploadRequest{
-		ID:   id,
-		Data: uploadData2,
+		ID:       id,
+		Data:     uploadData2,
+		Metadata: map[string]any{"field1": 3.0, "field2": "1"},
 	}
-	sum = sha256.Sum256(ur.Data)
-	ur.Hash = hex.EncodeToString(sum[:])
+	sum = sha256.Sum256(ur2.Data)
+	ur2.Hash = hex.EncodeToString(sum[:])
 	dataJson, err = json.Marshal(ur2)
 	if err != nil {
 		t.Fatalf("marshal upload 2 error: %v", err)
@@ -212,11 +215,84 @@ func TestServer_Lifecycle(t *testing.T) {
 		t.Fatalf("id mismatch, got %s want %s", id2, id)
 	}
 
+	//content 2
+	requestC2 := newRequest("GET", "http://"+serverUrl+"/files/"+id+"/content", nil, t)
+	requestC2.Header.Add("Authorization", "Bearer 2")
+
+	responseContent2, err := client.Do(requestC2)
+	if err != nil {
+		t.Errorf("content 2 request error: %v", err)
+	}
+
+	if responseContent2.StatusCode != http.StatusOK {
+		t.Errorf("got content 2 status %v want %v", responseContent2.StatusCode, http.StatusOK)
+	}
+
+	b, err = io.ReadAll(responseContent2.Body)
+	defer responseContent2.Body.Close()
+	if err != nil {
+		t.Errorf("content 2 response body read error: %v", err)
+	}
+
+	if !bytes.Equal(b, uploadData2) {
+		t.Errorf("bytes are not equal")
+	}
+
 	//info
+	requestInfo := newRequest("GET", "http://"+serverUrl+"/files/"+id+"/info", nil, t)
+	requestInfo.Header.Add("Authorization", "Bearer 1")
+
+	responseInfo, err := client.Do(requestInfo)
+	if err != nil {
+		t.Errorf("info request error: %v", err)
+	}
+
+	if responseInfo.StatusCode != http.StatusOK {
+		t.Errorf("info status %v want %v", responseInfo.StatusCode, http.StatusOK)
+	}
+
+	var infoAnswer map[string]any
+	decoder = json.NewDecoder(responseInfo.Body)
+	defer responseInfo.Body.Close()
+
+	err = decoder.Decode(&infoAnswer)
+	if err != nil {
+		t.Errorf("info response body read error: %v", err)
+	}
+
+	if !reflect.DeepEqual(ur2.Metadata, infoAnswer["metadata"]) {
+		t.Errorf("info metadata mismatch got %v want %v", infoAnswer["metadata"], ur2.Metadata)
+	}
+
+	//delete
+	requestDelete := newRequest("DELETE", "http://"+serverUrl+"/files/"+id, nil, t)
+	requestDelete.Header.Add("Authorization", "Bearer 2")
+
+	responseDelete, err := client.Do(requestDelete)
+	if err != nil {
+		t.Errorf("delete request error: %v", err)
+	}
+
+	if responseDelete.StatusCode != http.StatusOK {
+		t.Errorf("delete status %v want %v", responseDelete.StatusCode, http.StatusOK)
+	}
+
+	//content 3
+	requestC3 := newRequest("GET", "http://"+serverUrl+"/files/"+id+"/content", nil, t)
+	requestC3.Header.Add("Authorization", "Bearer 2")
+
+	responseContent3, err := client.Do(requestC3)
+	if err != nil {
+		t.Errorf("content 3 request error: %v", err)
+	}
+
+	if responseContent3.StatusCode != http.StatusNotFound {
+		t.Errorf("got content 3 status %v want %v", responseContent3.StatusCode, http.StatusNotFound)
+	}
 
 }
 
-func runServer(cfg config.Config) error {
+func runServer(cfg config.Config, t *testing.T) error {
 
 	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
 
@@ -236,6 +312,12 @@ func runServer(cfg config.Config) error {
 	if err != nil {
 		return fmt.Errorf("wait server up error: %v", err)
 	}
+
+	t.Cleanup(func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+	})
 
 	return nil
 }
