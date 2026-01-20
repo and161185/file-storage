@@ -44,7 +44,7 @@ func newContext(a *authorization.Auth, params map[string]string) context.Context
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, logger.NewBootstrap())
 
 	if a != nil {
-		ctx = context.WithValue(ctx, contextkeys.ContextKeyAuth, *a)
+		ctx = context.WithValue(ctx, contextkeys.ContextKeyAuth, a)
 	}
 
 	if params != nil {
