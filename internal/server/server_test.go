@@ -12,6 +12,7 @@ import (
 	"file-storage/internal/logger"
 	"file-storage/internal/storage/inmemory"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -109,10 +110,12 @@ func TestServer_Lifecycle(t *testing.T) {
 	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
 
 	client := http.DefaultClient
+	uploadData := []byte("some data")
 
+	//upload
 	ur := models.UploadRequest{
 		ID:       "",
-		Data:     []byte("some data"),
+		Data:     uploadData,
 		Metadata: map[string]any{"field1": 1, "field2": "2"},
 	}
 	sum := sha256.Sum256(ur.Data)
@@ -131,8 +134,86 @@ func TestServer_Lifecycle(t *testing.T) {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		t.Errorf("got status %v want %v", response.StatusCode, http.StatusOK)
+		t.Errorf("got upload status %v want %v", response.StatusCode, http.StatusOK)
 	}
+
+	var uploadAnswer map[string]string
+	decoder := json.NewDecoder(response.Body)
+	defer response.Body.Close()
+
+	err = decoder.Decode(&uploadAnswer)
+	if err != nil {
+		t.Fatalf("upload response decode error: %v", err)
+	}
+
+	id := uploadAnswer["id"]
+	if len(id) != 36 {
+		t.Fatalf("got empty id from upload want 36 symbols length")
+	}
+
+	//content
+	request = newRequest("GET", "http://"+serverUrl+"/files/"+id+"/content", nil, t)
+	request.Header.Add("Authorization", "Bearer 1")
+
+	responseContent, err := client.Do(request)
+	if err != nil {
+		t.Errorf("content request error: %v", err)
+	}
+
+	if responseContent.StatusCode != http.StatusOK {
+		t.Errorf("got content status %v want %v", responseContent.StatusCode, http.StatusOK)
+	}
+
+	b, err := io.ReadAll(responseContent.Body)
+	defer responseContent.Body.Close()
+	if err != nil {
+		t.Errorf("content response body read error: %v", err)
+	}
+
+	if !bytes.Equal(b, uploadData) {
+		t.Errorf("bytes are not equal")
+	}
+
+	//upload 2
+	uploadData2 := []byte("updated data")
+	ur2 := models.UploadRequest{
+		ID:   id,
+		Data: uploadData2,
+	}
+	sum = sha256.Sum256(ur.Data)
+	ur.Hash = hex.EncodeToString(sum[:])
+	dataJson, err = json.Marshal(ur2)
+	if err != nil {
+		t.Fatalf("marshal upload 2 error: %v", err)
+	}
+
+	request = newRequest("POST", "http://"+serverUrl+"/files/upload", dataJson, t)
+	request.Header.Add("Authorization", "Bearer 2")
+
+	response2, err := client.Do(request)
+	if err != nil {
+		t.Errorf("upload 2 request error: %v", err)
+	}
+
+	if response2.StatusCode != http.StatusOK {
+		t.Errorf("got upload 2 status %v want %v", response2.StatusCode, http.StatusOK)
+	}
+
+	decoder = json.NewDecoder(response2.Body)
+	defer response2.Body.Close()
+
+	err = decoder.Decode(&uploadAnswer)
+	if err != nil {
+		t.Fatalf("upload response decode error: %v", err)
+	}
+
+	id2 := uploadAnswer["id"]
+	if id != id2 {
+		t.Fatalf("id mismatch, got %s want %s", id2, id)
+	}
+
+	//info
+
 }
 
 func runServer(cfg config.Config) error {
