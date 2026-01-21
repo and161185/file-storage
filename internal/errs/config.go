@@ -10,4 +10,5 @@ var ErrConfigWrongLogLevel = errors.New("invalid config log level. should be deb
 var ErrConfigWrongLogType = errors.New("invalid config log type. should be json or text")
 var ErrConfigInvalidImageFormat = errors.New("invalid image format. Only bmp, jpg, png, gif, webp are supported")
 var ErrConfigImageDimentionOutOfRange = errors.New("Stored image dimention out of range 1000 - 10000")
+var ErrConfigInvalidStorage = errors.New("invalid storage")
 var ErrTokenNotSet = errors.New("token not set")

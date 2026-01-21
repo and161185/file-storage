@@ -21,6 +21,7 @@ func TestNewConfig(t *testing.T) {
 	cfg.Log.Type = LogTypeText
 	cfg.Image.MaxDimention = 2000
 	cfg.App.Security.ReadToken = "22"
+	cfg.App.Storage = StorageInmemory
 
 	path := filepath.Join(tmpdir, "config.yaml")
 	bytes, err := yaml.Marshal(&cfg)
@@ -44,6 +45,12 @@ func TestNewConfig(t *testing.T) {
 	}
 	defer os.Unsetenv("FILE_STORAGE_WRITE_TOKEN")
 
+	err = os.Setenv("FILE_STORAGE_STORAGE", StorageFileSystem)
+	if err != nil {
+		t.Fatalf("set FILE_STORAGE_STORAGE error: %s", err)
+	}
+	defer os.Unsetenv("FILE_STORAGE_STORAGE")
+
 	pflag.CommandLine = pflag.NewFlagSet("test_nc", pflag.ExitOnError)
 	pflag.String("loglevel", "info", "log level")
 	pflag.String("logtype", "json", "log type")
@@ -51,9 +58,13 @@ func TestNewConfig(t *testing.T) {
 	pflag.String("readtoken", "123", "read token")
 	pflag.String("writetoken", "123", "write token")
 	pflag.String("imageext", "", "stored image format")
+	pflag.String("fsstoragepath", "", "file system storage path")
+	pflag.Duration("fsstoragelocklifetime", 0, "file system lock lifetime")
 
 	pflag.Set("port", "666")
 	pflag.Set("imageext", "jpeg")
+	pflag.Set("fsstoragepath", "var/fs/data")
+	pflag.Set("fsstoragelocklifetime", "1s")
 	pflag.Parse()
 
 	config, err := NewConfig(path)
@@ -69,6 +80,12 @@ func TestNewConfig(t *testing.T) {
 	}
 	if config.App.Port != 666 {
 		t.Errorf("expected app port 666 got %d", config.App.Port)
+	}
+	if config.App.Storage != StorageFileSystem {
+		t.Errorf("expected storage %s got %s", StorageFileSystem, config.App.Storage)
+	}
+	if config.Storage.FileSystem.LockLifetime != 1*time.Second {
+		t.Errorf("expected storage lock lifetime %v got %v", 1*time.Second, config.Storage.FileSystem.LockLifetime)
 	}
 }
 
@@ -225,6 +242,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimention: 2000},
@@ -236,6 +254,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  0 * time.Second,
+					Storage:  StorageInmemory,
 					Port:     1,
 					Host:     "127.0.0.1",
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -249,6 +268,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     -2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -262,6 +282,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     65536,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -275,6 +296,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -288,6 +310,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -301,6 +324,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
@@ -314,6 +338,7 @@ func TestValidate(t *testing.T) {
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
 					Host:     "127.0.0.1",
 					Port:     2,
 					Security: Security{ReadToken: "", WriteToken: ""}},
@@ -323,7 +348,7 @@ func TestValidate(t *testing.T) {
 			want: errs.ErrTokenNotSet,
 		},
 		{
-			name: "ok",
+			name: "invalid storage",
 			cfg: Config{
 				App: App{
 					Timeout:  5 * time.Second,
@@ -332,6 +357,50 @@ func TestValidate(t *testing.T) {
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
+			want: errs.ErrConfigInvalidStorage,
+		},
+		{
+			name: "invalid FS storage, path required",
+			cfg: Config{
+				App: App{
+					Timeout:  5 * time.Second,
+					Storage:  StorageFileSystem,
+					Host:     "127.0.0.1",
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image:   Image{Ext: "jpeg", MaxDimention: 2000},
+				Storage: Storage{FileSystem: FileSystem{LockLifetime: 5 * time.Second}},
+			},
+			want: errs.ErrConfigInvalidStorage,
+		},
+		{
+			name: "ok inmemory",
+			cfg: Config{
+				App: App{
+					Timeout:  5 * time.Second,
+					Storage:  StorageInmemory,
+					Host:     "127.0.0.1",
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimention: 2000},
+			},
+			want: nil,
+		},
+		{
+			name: "ok fs",
+			cfg: Config{
+				App: App{
+					Timeout:  5 * time.Second,
+					Storage:  StorageFileSystem,
+					Host:     "127.0.0.1",
+					Port:     2,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image:   Image{Ext: "jpeg", MaxDimention: 2000},
+				Storage: Storage{FileSystem: FileSystem{LockLifetime: 5 * time.Second, Path: "some path"}},
 			},
 			want: nil,
 		},

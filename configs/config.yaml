@@ -4,9 +4,14 @@ app:
   security:
     read_token: "123"
     write_token: "321"
+  storage: "inmemory"
 log:
   level: "info"
   type: "json"
 image:
   ext: "jpeg"
   max_dimention: 2000
+storage:
+  filesystem:
+    path: "./data"
+    lock_lifetime: "5s"

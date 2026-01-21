@@ -25,12 +25,18 @@ const (
 	LogLevelError = "error"
 )
 
+const (
+	StorageFileSystem = "filesystem"
+	StorageInmemory   = "inmemory"
+)
+
 type App struct {
 	Host      string        `json:"host" yaml:"host"`
 	Port      int           `json:"port" yaml:"port"`
 	Timeout   time.Duration `json:"timeout" yaml:"timeout"`
 	SizeLimit int           `json:"size_limit" yaml:"size_limit"`
 	Security  Security      `json:"security" yaml:"security"`
+	Storage   string        `json:"storage" yaml:"storage"`
 }
 
 type Log struct {
@@ -48,10 +54,20 @@ type Image struct {
 	MaxDimention int    `json:"width" yaml:"max_dimention"`
 }
 
+type FileSystem struct {
+	Path         string        `json:"path" yaml:"path"`
+	LockLifetime time.Duration `json:"lock_lifetime" yaml:"lock_lifetime"`
+}
+
+type Storage struct {
+	FileSystem FileSystem `json:"filesystem" yaml:"filesystem"`
+}
+
 type Config struct {
-	App   App   `json:"app" yaml:"app"`
-	Log   Log   `json:"log" yaml:"log"`
-	Image Image `json:"image" yaml:"image"`
+	App     App     `json:"app" yaml:"app"`
+	Log     Log     `json:"log" yaml:"log"`
+	Image   Image   `json:"image" yaml:"image"`
+	Storage Storage `json:"storage" yaml:"storage"`
 }
 
 // NewConfig loads, merges and validates app configuration
@@ -198,6 +214,25 @@ func applyEnv(cfg *Config) error {
 		cfg.Image.MaxDimention = maxDim
 	}
 
+	sStorage := os.Getenv("FILE_STORAGE_STORAGE")
+	if sStorage != "" {
+		cfg.App.Storage = sStorage
+	}
+
+	sFsPath := os.Getenv("FILE_STORAGE_FS_PATH")
+	if sFsPath != "" {
+		cfg.Storage.FileSystem.Path = sFsPath
+	}
+
+	sFsLockLifetime := os.Getenv("FILE_STORAGE_FS_LOCK_LIFETIME")
+	if sFsLockLifetime != "" {
+		lifetime, err := time.ParseDuration(sFsLockLifetime)
+		if err != nil {
+			return err
+		}
+		cfg.Storage.FileSystem.LockLifetime = lifetime
+	}
+
 	return nil
 }
 
@@ -277,6 +312,25 @@ func applyFlags(cfg *Config) error {
 		cfg.Image.MaxDimention = maxDim
 	}
 
+	fStorage := pflag.Lookup("storage")
+	if fStorage != nil && fStorage.Changed {
+		cfg.App.Storage = fStorage.Value.String()
+	}
+
+	fFsstoragepath := pflag.Lookup("fsstoragepath")
+	if fFsstoragepath != nil && fFsstoragepath.Changed {
+		cfg.Storage.FileSystem.Path = fFsstoragepath.Value.String()
+	}
+
+	Ffsstoragelocklifetime := pflag.Lookup("fsstoragelocklifetime")
+	if Ffsstoragelocklifetime != nil && Ffsstoragelocklifetime.Changed {
+		lifetime, err := time.ParseDuration(Ffsstoragelocklifetime.Value.String())
+		if err != nil {
+			return err
+		}
+		cfg.Storage.FileSystem.LockLifetime = lifetime
+	}
+
 	return nil
 }
 
@@ -320,6 +374,19 @@ func validate(cfg *Config) error {
 
 	if cfg.App.Security.WriteToken == "" {
 		return fmt.Errorf("write token not set : %w", errs.ErrTokenNotSet)
+	}
+
+	if cfg.App.Storage != StorageFileSystem && cfg.App.Storage != StorageInmemory {
+		return errs.ErrConfigInvalidStorage
+	}
+
+	if cfg.App.Storage == StorageFileSystem {
+		if cfg.Storage.FileSystem.Path == "" {
+			return fmt.Errorf("%w: filesystem.path is required", errs.ErrConfigInvalidStorage)
+		}
+		if cfg.Storage.FileSystem.LockLifetime == 0 {
+			return fmt.Errorf("%w: filesystem.locklifetime is required", errs.ErrConfigInvalidStorage)
+		}
 	}
 
 	return nil
