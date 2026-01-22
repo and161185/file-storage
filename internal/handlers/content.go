@@ -4,8 +4,8 @@ import (
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
 	"file-storage/internal/errs"
-	"file-storage/internal/files"
-	"file-storage/internal/handlers/models"
+	"file-storage/internal/filedata"
+	"file-storage/internal/handlers/httpdto"
 	"file-storage/internal/logger"
 	"fmt"
 	"net/http"
@@ -44,7 +44,7 @@ func ContentHandler(svc Service) http.HandlerFunc {
 			return
 		}
 
-		cc := files.ContentCommand{
+		cc := filedata.ContentCommand{
 			ID:     cr.ID,
 			Width:  cr.Width,
 			Height: cr.Height,
@@ -62,8 +62,8 @@ func ContentHandler(svc Service) http.HandlerFunc {
 	}
 }
 
-func parseContentRequest(r *http.Request, ID string) (*models.ContentRequest, error) {
-	contentRequest := models.ContentRequest{}
+func parseContentRequest(r *http.Request, ID string) (*httpdto.ContentRequest, error) {
+	contentRequest := httpdto.ContentRequest{}
 
 	err := validateID(ID)
 	if err != nil {

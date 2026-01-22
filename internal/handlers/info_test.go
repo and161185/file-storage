@@ -3,7 +3,7 @@ package handlers
 import (
 	"context"
 	"file-storage/internal/authorization"
-	"file-storage/internal/files"
+	"file-storage/internal/filedata"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -44,7 +44,7 @@ func TestInfoHandler(t *testing.T) {
 		},
 		{
 			name: "business error",
-			service: &mockService{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
+			service: &mockService{fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 				return nil, fmt.Errorf("error")
 			}},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
@@ -53,8 +53,8 @@ func TestInfoHandler(t *testing.T) {
 		},
 		{
 			name: "ok",
-			service: &mockService{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
-				return &files.FileInfo{}, nil
+			service: &mockService{fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+				return &filedata.FileInfo{}, nil
 			}},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
 			request:    newHttpTestRequest("GET", "/", ""),

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"file-storage/internal/config"
 	"file-storage/internal/errs"
+	"file-storage/internal/filedata"
 	"file-storage/internal/files"
 	"file-storage/internal/imgproc"
 	"fmt"
@@ -18,19 +19,19 @@ import (
 )
 
 type mockStorage struct {
-	fnUpsert  func(ctx context.Context, fd *files.FileData) (string, error)
-	fnInfo    func(ctx context.Context, ID string) (*files.FileInfo, error)
-	fnContent func(ctx context.Context, ID string) (*files.ContentData, error)
+	fnUpsert  func(ctx context.Context, fd *filedata.FileData) (string, error)
+	fnInfo    func(ctx context.Context, ID string) (*filedata.FileInfo, error)
+	fnContent func(ctx context.Context, ID string) (*filedata.ContentData, error)
 	fnDelete  func(ctx context.Context, ID string) error
 }
 
-func (m *mockStorage) Upsert(ctx context.Context, fd *files.FileData) (string, error) {
+func (m *mockStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
 	return m.fnUpsert(ctx, fd)
 }
-func (m *mockStorage) Info(ctx context.Context, ID string) (*files.FileInfo, error) {
+func (m *mockStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	return m.fnInfo(ctx, ID)
 }
-func (m *mockStorage) Content(ctx context.Context, ID string) (*files.ContentData, error) {
+func (m *mockStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
 	return m.fnContent(ctx, ID)
 }
 func (m *mockStorage) Delete(ctx context.Context, ID string) error {
@@ -58,7 +59,7 @@ func TestUpdate(t *testing.T) {
 	table := []struct {
 		name           string
 		storage        *mockStorage
-		uploadCommand  *files.UploadCommand
+		uploadCommand  *filedata.UploadCommand
 		wantErr        error
 		wantID         string
 		wantCallUpsert bool
@@ -66,12 +67,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "image error",
 			storage: &mockStorage{
-				fnUpsert: func(ctx context.Context, fd *files.FileData) (string, error) {
+				fnUpsert: func(ctx context.Context, fd *filedata.FileData) (string, error) {
 					callUpsert = true
 					return "", nil
 				},
 			},
-			uploadCommand: &files.UploadCommand{
+			uploadCommand: &filedata.UploadCommand{
 				ID:      "1",
 				IsImage: true,
 				Data:    []byte("not an image")},
@@ -82,12 +83,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "storage error",
 			storage: &mockStorage{
-				fnUpsert: func(ctx context.Context, fd *files.FileData) (string, error) {
+				fnUpsert: func(ctx context.Context, fd *filedata.FileData) (string, error) {
 					callUpsert = true
 					return "", storageError
 				},
 			},
-			uploadCommand: &files.UploadCommand{
+			uploadCommand: &filedata.UploadCommand{
 				ID:      "",
 				IsImage: false,
 				Data:    []byte("not an image")},
@@ -98,12 +99,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "ok",
 			storage: &mockStorage{
-				fnUpsert: func(ctx context.Context, fd *files.FileData) (string, error) {
+				fnUpsert: func(ctx context.Context, fd *filedata.FileData) (string, error) {
 					callUpsert = true
 					return "1", nil
 				},
 			},
-			uploadCommand: &files.UploadCommand{
+			uploadCommand: &filedata.UploadCommand{
 				ID:      "1",
 				IsImage: true,
 				Data:    b},
@@ -156,7 +157,7 @@ func TestContent(t *testing.T) {
 	table := []struct {
 		name           string
 		storage        *mockStorage
-		contentCommand *files.ContentCommand
+		contentCommand *filedata.ContentCommand
 		wantErr        error
 		wantCall       bool
 		wantBytes      []byte
@@ -164,12 +165,12 @@ func TestContent(t *testing.T) {
 		{
 			name: "width error",
 			storage: &mockStorage{
-				fnContent: func(ctx context.Context, ID string) (*files.ContentData, error) {
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
 					call = true
 					return nil, nil
 				},
 			},
-			contentCommand: &files.ContentCommand{
+			contentCommand: &filedata.ContentCommand{
 				ID:    "1",
 				Width: &zero,
 			},
@@ -180,12 +181,12 @@ func TestContent(t *testing.T) {
 		{
 			name: "height error",
 			storage: &mockStorage{
-				fnContent: func(ctx context.Context, ID string) (*files.ContentData, error) {
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
 					call = true
 					return nil, nil
 				},
 			},
-			contentCommand: &files.ContentCommand{
+			contentCommand: &filedata.ContentCommand{
 				ID:     "1",
 				Height: &zero,
 			},
@@ -196,12 +197,12 @@ func TestContent(t *testing.T) {
 		{
 			name: "storage error",
 			storage: &mockStorage{
-				fnContent: func(ctx context.Context, ID string) (*files.ContentData, error) {
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
 					call = true
 					return nil, storageError
 				},
 			},
-			contentCommand: &files.ContentCommand{
+			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
 			wantErr:   storageError,
@@ -211,14 +212,14 @@ func TestContent(t *testing.T) {
 		{
 			name: "processing image error",
 			storage: &mockStorage{
-				fnContent: func(ctx context.Context, ID string) (*files.ContentData, error) {
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
 					call = true
 					b := []byte("not an image")
 					data := io.NopCloser(bytes.NewReader(b))
-					return &files.ContentData{Data: data, IsImage: true}, nil
+					return &filedata.ContentData{Data: data, IsImage: true}, nil
 				},
 			},
-			contentCommand: &files.ContentCommand{
+			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
 			wantErr:   errs.ErrInvalidImage,
@@ -228,13 +229,13 @@ func TestContent(t *testing.T) {
 		{
 			name: "ok",
 			storage: &mockStorage{
-				fnContent: func(ctx context.Context, ID string) (*files.ContentData, error) {
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
 					call = true
 					data := io.NopCloser(bytes.NewReader(imgBytes))
-					return &files.ContentData{Data: data, IsImage: true}, nil
+					return &filedata.ContentData{Data: data, IsImage: true}, nil
 				},
 			},
-			contentCommand: &files.ContentCommand{
+			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
 			wantErr:   nil,
@@ -279,11 +280,11 @@ func TestInfo(t *testing.T) {
 		storage      *mockStorage
 		id           string
 		wantError    error
-		wantFileInfo *files.FileInfo
+		wantFileInfo *filedata.FileInfo
 	}{
 		{
 			name: "storage error",
-			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
+			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 				return nil, storageError
 			}},
 			id:           "1",
@@ -292,12 +293,12 @@ func TestInfo(t *testing.T) {
 		},
 		{
 			name: "ok",
-			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*files.FileInfo, error) {
-				return &files.FileInfo{ID: "1"}, nil
+			storage: &mockStorage{fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+				return &filedata.FileInfo{ID: "1"}, nil
 			}},
 			id:           "1",
 			wantError:    nil,
-			wantFileInfo: &files.FileInfo{ID: "1"},
+			wantFileInfo: &filedata.FileInfo{ID: "1"},
 		},
 	}
 

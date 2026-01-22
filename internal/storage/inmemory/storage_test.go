@@ -5,7 +5,7 @@ import (
 	"context"
 	"errors"
 	"file-storage/internal/errs"
-	"file-storage/internal/files"
+	"file-storage/internal/filedata"
 	"io"
 	"reflect"
 	"testing"
@@ -17,7 +17,7 @@ func TestUpsert(t *testing.T) {
 
 	table := []struct {
 		name    string
-		fd      *files.FileData
+		fd      *filedata.FileData
 		wantID  string
 		wantErr error
 	}{
@@ -29,13 +29,13 @@ func TestUpsert(t *testing.T) {
 		},
 		{
 			name:    "invalid ID",
-			fd:      &files.FileData{ID: " "},
+			fd:      &filedata.FileData{ID: " "},
 			wantID:  "",
 			wantErr: errs.ErrInvalidID,
 		},
 		{
 			name:    "upsert",
-			fd:      &files.FileData{ID: "1"},
+			fd:      &filedata.FileData{ID: "1"},
 			wantID:  "1",
 			wantErr: nil,
 		},
@@ -61,7 +61,7 @@ func TestInfo(t *testing.T) {
 	ctx := context.Background()
 
 	id := "1"
-	fd := &files.FileData{ID: id, IsImage: true}
+	fd := &filedata.FileData{ID: id, IsImage: true}
 
 	_, err := s.Upsert(ctx, fd)
 	if err != nil {
@@ -71,7 +71,7 @@ func TestInfo(t *testing.T) {
 	table := []struct {
 		name         string
 		id           string
-		wantFileInfo *files.FileInfo
+		wantFileInfo *filedata.FileInfo
 		wantErr      error
 	}{
 		{
@@ -83,7 +83,7 @@ func TestInfo(t *testing.T) {
 		{
 			name:         "ok",
 			id:           id,
-			wantFileInfo: fileInfo(fd),
+			wantFileInfo: filedata.FileInfoFromFileData(fd),
 			wantErr:      nil,
 		},
 	}
@@ -110,14 +110,14 @@ func TestContent(t *testing.T) {
 	b := []byte("bytes")
 
 	id := "1"
-	fd := &files.FileData{ID: id, Data: b}
+	fd := &filedata.FileData{ID: id, Data: b}
 
 	s.Upsert(ctx, fd)
 
 	table := []struct {
 		name            string
 		id              string
-		wantContentData *files.ContentData
+		wantContentData *filedata.ContentData
 		wantErr         error
 	}{
 		{
@@ -129,7 +129,7 @@ func TestContent(t *testing.T) {
 		{
 			name:            "ok",
 			id:              id,
-			wantContentData: &files.ContentData{Data: io.NopCloser(bytes.NewReader(b)), IsImage: false},
+			wantContentData: &filedata.ContentData{Data: io.NopCloser(bytes.NewReader(b)), IsImage: false},
 			wantErr:         nil,
 		},
 	}
@@ -148,7 +148,7 @@ func TestContent(t *testing.T) {
 	}
 }
 
-func equalContentData(a *files.ContentData, b *files.ContentData) bool {
+func equalContentData(a *filedata.ContentData, b *filedata.ContentData) bool {
 	if a == b {
 		return true
 	}
@@ -182,7 +182,7 @@ func TestDelete(t *testing.T) {
 	s := New()
 
 	id := "1"
-	fd := &files.FileData{ID: id}
+	fd := &filedata.FileData{ID: id}
 	s.Upsert(ctx, fd)
 
 	table := []struct {

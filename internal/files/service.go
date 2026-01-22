@@ -4,6 +4,7 @@ import (
 	"context"
 	"file-storage/internal/config"
 	"file-storage/internal/errs"
+	"file-storage/internal/filedata"
 	"fmt"
 	"io"
 	"time"
@@ -25,9 +26,9 @@ func NewService(cfg *config.Image, storage Storage) *Service {
 
 // Update validates input data and stores file content and metadata.
 // The operation is idempotent for the same file ID.
-func (s *Service) Update(ctx context.Context, uc *UploadCommand) (string, error) {
+func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (string, error) {
 
-	var imageInfo *ImageInfo
+	var imageInfo *filedata.ImageInfo
 	data := uc.Data
 	if uc.IsImage {
 		var err error
@@ -37,7 +38,7 @@ func (s *Service) Update(ctx context.Context, uc *UploadCommand) (string, error)
 		}
 	}
 
-	fd := FileData{
+	fd := filedata.FileData{
 		ID:        uc.ID,
 		Data:      data,
 		Hash:      uc.Hash,
@@ -63,7 +64,7 @@ func (s *Service) Update(ctx context.Context, uc *UploadCommand) (string, error)
 
 // Content returns file content by ID with optional image transformations.
 // The method returns only file bytes.
-func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, error) {
+func (s *Service) Content(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
 
 	var format string
 	var width int
@@ -116,7 +117,7 @@ func (s *Service) Content(ctx context.Context, cc *ContentCommand) ([]byte, erro
 
 // Info returns file metadata by ID.
 // The response does not contain file content.
-func (s *Service) Info(ctx context.Context, ID string) (*FileInfo, error) {
+func (s *Service) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 
 	fi, err := s.storage.Info(ctx, ID)
 	if err != nil {

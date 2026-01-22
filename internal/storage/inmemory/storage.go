@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"file-storage/internal/errs"
-	"file-storage/internal/files"
+	"file-storage/internal/filedata"
 	"io"
 	"strings"
 	"sync"
@@ -16,14 +16,14 @@ import (
 
 type MemoryStorage struct {
 	mu      sync.RWMutex
-	storage map[string]*files.FileData
+	storage map[string]*filedata.FileData
 }
 
 func New() *MemoryStorage {
-	return &MemoryStorage{storage: make(map[string]*files.FileData)}
+	return &MemoryStorage{storage: make(map[string]*filedata.FileData)}
 }
 
-func (s *MemoryStorage) Upsert(ctx context.Context, fd *files.FileData) (string, error) {
+func (s *MemoryStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
 
 	if fd == nil {
 		return "", errs.ErrInvalidFileData
@@ -43,7 +43,7 @@ func (s *MemoryStorage) Upsert(ctx context.Context, fd *files.FileData) (string,
 	return fd.ID, nil
 }
 
-func (s *MemoryStorage) Info(ctx context.Context, ID string) (*files.FileInfo, error) {
+func (s *MemoryStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]
 	s.mu.RUnlock()
@@ -52,10 +52,10 @@ func (s *MemoryStorage) Info(ctx context.Context, ID string) (*files.FileInfo, e
 		return nil, errs.ErrNotFound
 	}
 
-	return fileInfo(fd), nil
+	return filedata.FileInfoFromFileData(fd), nil
 }
 
-func (s *MemoryStorage) Content(ctx context.Context, ID string) (*files.ContentData, error) {
+func (s *MemoryStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]
 	s.mu.RUnlock()
@@ -67,7 +67,7 @@ func (s *MemoryStorage) Content(ctx context.Context, ID string) (*files.ContentD
 	b := make([]byte, len(fd.Data))
 	copy(b, fd.Data)
 
-	cd := files.ContentData{
+	cd := filedata.ContentData{
 		Data:    io.NopCloser(bytes.NewReader(b)),
 		IsImage: fd.IsImage,
 	}
@@ -84,7 +84,7 @@ func (s *MemoryStorage) Delete(ctx context.Context, ID string) error {
 	return nil
 }
 
-func copyFileData(fd *files.FileData) *files.FileData {
+func copyFileData(fd *filedata.FileData) *filedata.FileData {
 	value := *fd
 
 	if fd.Metadata != nil {
@@ -99,29 +99,6 @@ func copyFileData(fd *files.FileData) *files.FileData {
 		b := make([]byte, len(fd.Data))
 		copy(b, fd.Data)
 		value.Data = b
-	}
-
-	return &value
-}
-
-func fileInfo(fd *files.FileData) *files.FileInfo {
-	value := files.FileInfo{
-		ID:        fd.ID,
-		FileSize:  fd.FileSize,
-		IsImage:   fd.IsImage,
-		Format:    fd.Format,
-		Width:     fd.Width,
-		Height:    fd.Height,
-		CreatedAt: fd.CreatedAt,
-		UpdatedAt: fd.UpdatedAt,
-	}
-
-	if fd.Metadata != nil {
-		metadata := make(map[string]any, len(fd.Metadata))
-		for k, v := range fd.Metadata {
-			metadata[k] = v
-		}
-		value.Metadata = metadata
 	}
 
 	return &value

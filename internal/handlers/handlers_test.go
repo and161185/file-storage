@@ -5,7 +5,7 @@ import (
 	"context"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
-	"file-storage/internal/files"
+	"file-storage/internal/filedata"
 	"file-storage/internal/logger"
 	"net/http"
 	"net/http/httptest"
@@ -14,19 +14,19 @@ import (
 )
 
 type mockService struct {
-	fnUpdate  func(ctx context.Context, uc *files.UploadCommand) (string, error)
-	fnContent func(ctx context.Context, cc *files.ContentCommand) ([]byte, error)
-	fnInfo    func(ctx context.Context, ID string) (*files.FileInfo, error)
+	fnUpdate  func(ctx context.Context, uc *filedata.UploadCommand) (string, error)
+	fnContent func(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error)
+	fnInfo    func(ctx context.Context, ID string) (*filedata.FileInfo, error)
 	fnDelete  func(ctx context.Context, ID string) error
 }
 
-func (s *mockService) Update(ctx context.Context, uc *files.UploadCommand) (string, error) {
+func (s *mockService) Update(ctx context.Context, uc *filedata.UploadCommand) (string, error) {
 	return s.fnUpdate(ctx, uc)
 }
-func (s *mockService) Content(ctx context.Context, cc *files.ContentCommand) ([]byte, error) {
+func (s *mockService) Content(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
 	return s.fnContent(ctx, cc)
 }
-func (s *mockService) Info(ctx context.Context, ID string) (*files.FileInfo, error) {
+func (s *mockService) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	return s.fnInfo(ctx, ID)
 }
 func (s *mockService) Delete(ctx context.Context, ID string) error {

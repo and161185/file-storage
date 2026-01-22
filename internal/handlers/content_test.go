@@ -4,7 +4,7 @@ import (
 	"context"
 	"file-storage/internal/authorization"
 	"file-storage/internal/errs"
-	"file-storage/internal/files"
+	"file-storage/internal/filedata"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -58,7 +58,7 @@ func TestContentHandler(t *testing.T) {
 		},
 		{
 			name: "invalid format",
-			service: &mockService{fnContent: func(ctx context.Context, cc *files.ContentCommand) ([]byte, error) {
+			service: &mockService{fnContent: func(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
 				return nil, errs.ErrUnsupportedImageFormat
 			}},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
@@ -67,7 +67,7 @@ func TestContentHandler(t *testing.T) {
 		},
 		{
 			name: "ok",
-			service: &mockService{fnContent: func(ctx context.Context, cc *files.ContentCommand) ([]byte, error) {
+			service: &mockService{fnContent: func(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
 				return []byte("ok"), nil
 			}},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),

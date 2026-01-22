@@ -1,4 +1,4 @@
-package models
+package httpdto
 
 type UploadRequest struct {
 	ID       string         `json:"id"`

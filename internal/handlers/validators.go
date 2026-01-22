@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"file-storage/internal/errs"
-	"file-storage/internal/handlers/models"
+	"file-storage/internal/handlers/httpdto"
 	"fmt"
 	"net/http"
 	"strings"
 )
 
-func validateUploadRequest(r *models.UploadRequest) error {
+func validateUploadRequest(r *httpdto.UploadRequest) error {
 
 	if err := validateUploadID(r.ID); err != nil {
 		return err

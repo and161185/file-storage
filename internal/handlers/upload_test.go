@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/errs"
-	"file-storage/internal/files"
-	"file-storage/internal/handlers/models"
+	"file-storage/internal/filedata"
+	"file-storage/internal/handlers/httpdto"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,13 +16,13 @@ import (
 
 func TestUploadHandler(t *testing.T) {
 
-	ur := models.UploadRequest{Data: []byte("123")}
+	ur := httpdto.UploadRequest{Data: []byte("123")}
 	bodyInvalidHash, err := json.Marshal(ur)
 	if err != nil {
 		t.Fatalf("upload request preparation fail: %v", err)
 	}
 
-	ur = models.UploadRequest{Data: []byte("123")}
+	ur = httpdto.UploadRequest{Data: []byte("123")}
 	sum := sha256.Sum256(ur.Data)
 	ur.Hash = hex.EncodeToString(sum[:])
 	bodyOK, err := json.Marshal(ur)
@@ -74,7 +74,7 @@ func TestUploadHandler(t *testing.T) {
 		},
 		{
 			name: "unsupported image",
-			service: &mockService{fnUpdate: func(ctx context.Context, uc *files.UploadCommand) (string, error) {
+			service: &mockService{fnUpdate: func(ctx context.Context, uc *filedata.UploadCommand) (string, error) {
 				return "", errs.ErrUnsupportedImageFormat
 			}},
 			ctx:        newContext(&authorization.Auth{Write: true}, nil),
@@ -83,7 +83,7 @@ func TestUploadHandler(t *testing.T) {
 		},
 		{
 			name: "ok",
-			service: &mockService{fnUpdate: func(ctx context.Context, uc *files.UploadCommand) (string, error) {
+			service: &mockService{fnUpdate: func(ctx context.Context, uc *filedata.UploadCommand) (string, error) {
 				return "", nil
 			}},
 			ctx:        newContext(&authorization.Auth{Write: true}, nil),

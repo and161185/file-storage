@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"file-storage/internal/errs"
+	"file-storage/internal/filedata"
 	"file-storage/internal/imgproc"
 	"image/color"
 	"reflect"
@@ -38,7 +39,7 @@ func TestProcessImage(t *testing.T) {
 		targetWidth   int
 		targetHeight  int
 		wantb         []byte
-		wantImageInfo *ImageInfo
+		wantImageInfo *filedata.ImageInfo
 		checkErrType  bool
 		wantErr       error
 	}{
@@ -93,7 +94,7 @@ func TestProcessImage(t *testing.T) {
 			targetWidth:   w,
 			targetHeight:  h,
 			wantb:         b,
-			wantImageInfo: &ImageInfo{Format: imgproc.ImgFormat(format), Width: w, Height: h},
+			wantImageInfo: &filedata.ImageInfo{Format: imgproc.ImgFormat(format), Width: w, Height: h},
 			checkErrType:  true,
 			wantErr:       nil,
 		},
@@ -104,7 +105,7 @@ func TestProcessImage(t *testing.T) {
 			targetWidth:   w / 2,
 			targetHeight:  h / 2,
 			wantb:         nil,
-			wantImageInfo: &ImageInfo{Format: imgproc.ImgFormat("bmp"), Width: w / 2, Height: h / 2},
+			wantImageInfo: &filedata.ImageInfo{Format: imgproc.ImgFormat("bmp"), Width: w / 2, Height: h / 2},
 			checkErrType:  true,
 			wantErr:       nil,
 		},

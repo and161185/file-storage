@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"file-storage/internal/config"
 	"file-storage/internal/files"
-	"file-storage/internal/handlers/models"
+	"file-storage/internal/handlers/httpdto"
 	"file-storage/internal/logger"
 	"file-storage/internal/storage/inmemory"
 	"fmt"
@@ -115,7 +115,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	uploadData := []byte("some data")
 
 	//upload
-	ur := models.UploadRequest{
+	ur := httpdto.UploadRequest{
 		ID:       "",
 		Data:     uploadData,
 		Metadata: map[string]any{"field1": 0, "field2": "0"},
@@ -178,7 +178,7 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	//upload 2
 	uploadData2 := []byte("updated data")
-	ur2 := models.UploadRequest{
+	ur2 := httpdto.UploadRequest{
 		ID:       id,
 		Data:     uploadData2,
 		Metadata: map[string]any{"field1": 3.0, "field2": "1"},

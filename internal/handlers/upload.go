@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
-	"file-storage/internal/files"
-	"file-storage/internal/handlers/models"
+	"file-storage/internal/filedata"
+	"file-storage/internal/handlers/httpdto"
 	"file-storage/internal/logger"
 	"fmt"
 	"log/slog"
@@ -18,7 +18,7 @@ import (
 // Upload handles file upload or update requests.
 func UploadHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var ur models.UploadRequest
+		var ur httpdto.UploadRequest
 
 		ctx := r.Context()
 		log := logger.FromContext(ctx)
@@ -58,7 +58,7 @@ func UploadHandler(svc Service) http.HandlerFunc {
 			ur.ID = uuid.New().String()
 		}
 
-		var uc files.UploadCommand
+		var uc filedata.UploadCommand
 		uc.ID = ur.ID
 		uc.Hash = ur.Hash
 		uc.Data = ur.Data

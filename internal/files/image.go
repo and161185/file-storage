@@ -3,6 +3,7 @@ package files
 import (
 	"bytes"
 	"file-storage/internal/errs"
+	"file-storage/internal/filedata"
 	"file-storage/internal/imgproc"
 	"fmt"
 
@@ -10,7 +11,7 @@ import (
 )
 
 // ProcessImage converts image data to requested format and size
-func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int) ([]byte, *ImageInfo, error) {
+func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int) ([]byte, *filedata.ImageInfo, error) {
 	targetFormat, ok := imgproc.SupportedOutputFormat(targetExt)
 	if !ok {
 		return nil, nil, fmt.Errorf("unsupported target image format %s: %w", targetExt, errs.ErrUnsupportedImageFormat)
@@ -34,7 +35,7 @@ func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int)
 	multiplier := min(multiplierW, multiplierH)
 
 	if format == targetFormat && multiplier >= 1 {
-		imageInfo := ImageInfo{
+		imageInfo := filedata.ImageInfo{
 			Format: format,
 			Width:  width,
 			Height: height,
@@ -63,7 +64,7 @@ func ProcessImage(b []byte, targetExt string, targetWidth int, targetHeight int)
 		return nil, nil, fmt.Errorf("encode image error: %w", err)
 	}
 
-	imageInfo := ImageInfo{
+	imageInfo := filedata.ImageInfo{
 		Format: targetFormat,
 		Width:  img.Bounds().Dx(),
 		Height: img.Bounds().Dy(),
