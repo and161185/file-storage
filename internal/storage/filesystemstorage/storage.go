@@ -1,6 +1,7 @@
 package filesystemstorage
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"file-storage/internal/filedata"
 	"file-storage/internal/logger"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -35,9 +37,9 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", errs.ErrInvalidFileData
 	}
 
-	dirPatn, err := f.fileCatalog(fd.ID)
+	dirPatn, err := fileCatalog(f.path, fd.ID)
 	if err != nil {
-		return "", fmt.Errorf("file data creation error: %w", err)
+		return "", fmt.Errorf("catalog name error: %w", err)
 	}
 	err = os.MkdirAll(dirPatn, 0755)
 	if err != nil {
@@ -64,8 +66,8 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", fmt.Errorf("file info marshall error: %w", err)
 	}
 
-	dataTempName := filepath.Join(dirPatn, fd.ID+"."+string(fd.Format)+"_tmp")
-	dataName := filepath.Join(dirPatn, fd.ID+"."+string(fd.Format))
+	dataTempName := filepath.Join(dirPatn, fd.ID+".bin_tmp")
+	dataName := filepath.Join(dirPatn, fd.ID+".bin")
 	err = writeFile(fd.Data, dataName, dataTempName)
 	if err != nil {
 		return "", fmt.Errorf("write file data error: %w", err)
@@ -86,6 +88,98 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 	logLongCall(ctx, fd, start, f.lockLifetime)
 
 	return fd.ID, nil
+}
+
+func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
+
+	if len(ID) == 0 {
+		return errs.ErrInvalidID
+	}
+
+	dirPatn, err := fileCatalog(f.path, ID)
+	if err != nil {
+		return fmt.Errorf("catalog name error: %w", err)
+	}
+
+	err = lock(ID, dirPatn, f.lockLifetime)
+	if err != nil {
+		return fmt.Errorf("lock creation error: %w", err)
+	}
+	defer func() {
+		if err := unlock(ID, dirPatn); err != nil {
+			logger.FromContext(ctx).Warn(
+				"unlock failed",
+				"id", ID,
+				"error", err,
+			)
+		}
+	}()
+
+	searchName := filepath.Join(dirPatn, ID+"*")
+	matches, err := filepath.Glob(searchName)
+	if err != nil {
+		return fmt.Errorf("search files error: %w", err)
+	}
+
+	for _, fileName := range matches {
+		err := os.Remove(fileName)
+		if err != nil {
+			return fmt.Errorf("remove file error: %w", err)
+		}
+	}
+
+	err = syncDir(dirPatn)
+	if err != nil {
+		return fmt.Errorf("sync dir error: %w", err)
+	}
+
+	return nil
+}
+
+func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+	if len(ID) == 0 {
+		return nil, errs.ErrInvalidID
+	}
+
+	dirPatn, err := fileCatalog(f.path, ID)
+	if err != nil {
+		return nil, fmt.Errorf("catalog name error: %w", err)
+	}
+
+	fileName := filepath.Join(dirPatn, ID+".meta.json")
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("read file error: %w", err)
+	}
+
+	var fi filedata.FileInfo
+	err = json.Unmarshal(b, &fi)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshall info error: %w", err)
+	}
+
+	return &fi, nil
+}
+
+func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
+	fi, err := f.Info(ctx, ID)
+	if err != nil {
+		return nil, err
+	}
+
+	dirPatn, err := fileCatalog(f.path, ID)
+	if err != nil {
+		return nil, fmt.Errorf("catalog name error: %w", err)
+	}
+
+	fileName := filepath.Join(dirPatn, ID+".bin")
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("read file error: %w", err)
+	}
+
+	data := io.NopCloser(bytes.NewReader(b))
+	return &filedata.ContentData{Data: data, IsImage: fi.IsImage}, nil
 }
 
 func lock(id string, dirPatn string, lockLifetime time.Duration) error {
@@ -152,7 +246,7 @@ func unlock(id string, dirPatn string) error {
 	return err
 }
 
-func (f *FileSystemStorage) fileCatalog(id string) (string, error) {
+func fileCatalog(path, id string) (string, error) {
 
 	r := []rune(id)
 
@@ -163,7 +257,7 @@ func (f *FileSystemStorage) fileCatalog(id string) (string, error) {
 	cat1 := string(r[0:2])
 	cat2 := string(r[2:4])
 
-	return filepath.Join(f.path, cat1, cat2), nil
+	return filepath.Join(path, cat1, cat2), nil
 }
 
 func lockFileName(catalog, id string) string {
