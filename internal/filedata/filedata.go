@@ -62,6 +62,7 @@ type ImageInfo struct {
 func FileInfoFromFileData(fd *FileData) *FileInfo {
 	fi := FileInfo{
 		ID:        fd.ID,
+		Hash:      fd.Hash,
 		FileSize:  fd.FileSize,
 		IsImage:   fd.IsImage,
 		Format:    fd.Format,

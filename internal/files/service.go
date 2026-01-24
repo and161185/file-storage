@@ -28,30 +28,56 @@ func NewService(cfg *config.Image, storage Storage) *Service {
 // The operation is idempotent for the same file ID.
 func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (string, error) {
 
-	var imageInfo *filedata.ImageInfo
-	data := uc.Data
-	if uc.IsImage {
-		var err error
-		data, imageInfo, err = ProcessImage(data, s.cfg.Ext, s.cfg.MaxDimention, s.cfg.MaxDimention)
-		if err != nil {
-			return "", fmt.Errorf("image processing error: %w", err)
+	updateData := true
+	createdAt := time.Now()
+	fi, err := s.Info(ctx, uc.ID)
+	if err == nil {
+		updateData = uc.Hash != fi.Hash
+		createdAt = fi.CreatedAt
+	}
+
+	var fd filedata.FileData
+	if updateData {
+		var imageInfo *filedata.ImageInfo
+		data := uc.Data
+		if uc.IsImage {
+			var err error
+			data, imageInfo, err = ProcessImage(data, s.cfg.Ext, s.cfg.MaxDimention, s.cfg.MaxDimention)
+			if err != nil {
+				return "", fmt.Errorf("image processing error: %w", err)
+			}
 		}
-	}
 
-	fd := filedata.FileData{
-		ID:        uc.ID,
-		Data:      data,
-		Hash:      uc.Hash,
-		IsImage:   uc.IsImage,
-		FileSize:  len(data),
-		Metadata:  uc.Metadata,
-		UpdatedAt: time.Now(),
-	}
+		fd = filedata.FileData{
+			ID:        uc.ID,
+			Data:      data,
+			Hash:      uc.Hash,
+			IsImage:   uc.IsImage,
+			FileSize:  len(data),
+			Metadata:  uc.Metadata,
+			UpdatedAt: time.Now(),
+			CreatedAt: createdAt,
+		}
 
-	if imageInfo != nil {
-		fd.Format = imageInfo.Format
-		fd.Width = imageInfo.Width
-		fd.Height = imageInfo.Height
+		if imageInfo != nil {
+			fd.Format = imageInfo.Format
+			fd.Width = imageInfo.Width
+			fd.Height = imageInfo.Height
+		}
+	} else {
+		fd = filedata.FileData{
+			ID:        uc.ID,
+			Data:      nil,
+			Hash:      fi.Hash,
+			IsImage:   fi.IsImage,
+			FileSize:  fi.FileSize,
+			Metadata:  uc.Metadata,
+			UpdatedAt: time.Now(),
+			CreatedAt: createdAt,
+			Format:    fi.Format,
+			Width:     fi.Width,
+			Height:    fi.Height,
+		}
 	}
 
 	ID, err := s.storage.Upsert(ctx, &fd)

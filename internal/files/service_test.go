@@ -71,9 +71,13 @@ func TestUpdate(t *testing.T) {
 					callUpsert = true
 					return "", nil
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{ID: "12345", IsImage: true}, nil
+				},
 			},
 			uploadCommand: &filedata.UploadCommand{
-				ID:      "1",
+				ID:      "12345",
+				Hash:    "22",
 				IsImage: true,
 				Data:    []byte("not an image")},
 			wantErr:        errs.ErrInvalidImage,
@@ -87,9 +91,13 @@ func TestUpdate(t *testing.T) {
 					callUpsert = true
 					return "", storageError
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return nil, errs.ErrInvalidID
+				},
 			},
 			uploadCommand: &filedata.UploadCommand{
 				ID:      "",
+				Hash:    "22",
 				IsImage: false,
 				Data:    []byte("not an image")},
 			wantErr:        storageError,
@@ -101,15 +109,19 @@ func TestUpdate(t *testing.T) {
 			storage: &mockStorage{
 				fnUpsert: func(ctx context.Context, fd *filedata.FileData) (string, error) {
 					callUpsert = true
-					return "1", nil
+					return "12345", nil
+				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{ID: "12345", IsImage: true}, nil
 				},
 			},
 			uploadCommand: &filedata.UploadCommand{
-				ID:      "1",
+				ID:      "12345",
+				Hash:    "22",
 				IsImage: true,
 				Data:    b},
 			wantErr:        nil,
-			wantID:         "1",
+			wantID:         "12345",
 			wantCallUpsert: true,
 		},
 	}

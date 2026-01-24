@@ -33,9 +33,6 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 	if fd == nil {
 		return "", errs.ErrInvalidFileData
 	}
-	if len(fd.Data) == 0 {
-		return "", errs.ErrInvalidFileData
-	}
 
 	dirPatn, err := fileCatalog(f.path, fd.ID)
 	if err != nil {
@@ -66,11 +63,13 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", fmt.Errorf("file info marshall error: %w", err)
 	}
 
-	dataTempName := filepath.Join(dirPatn, fd.ID+".bin_tmp")
-	dataName := filepath.Join(dirPatn, fd.ID+".bin")
-	err = writeFile(fd.Data, dataName, dataTempName)
-	if err != nil {
-		return "", fmt.Errorf("write file data error: %w", err)
+	if fd.Data != nil {
+		dataTempName := filepath.Join(dirPatn, fd.ID+".bin.tmp")
+		dataName := filepath.Join(dirPatn, fd.ID+".bin")
+		err = writeFile(fd.Data, dataName, dataTempName)
+		if err != nil {
+			return "", fmt.Errorf("write file data error: %w", err)
+		}
 	}
 
 	fiTempName := filepath.Join(dirPatn, fd.ID+".meta.json.tmp")
@@ -85,7 +84,7 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", fmt.Errorf("sync dir error: %w", err)
 	}
 
-	logLongCall(ctx, fd, start, f.lockLifetime)
+	logLongCall(ctx, fd, start)
 
 	return fd.ID, nil
 }
@@ -99,6 +98,13 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 	dirPatn, err := fileCatalog(f.path, ID)
 	if err != nil {
 		return fmt.Errorf("catalog name error: %w", err)
+	}
+
+	if _, err := os.Stat(dirPatn); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return err
 	}
 
 	err = lock(ID, dirPatn, f.lockLifetime)
@@ -115,15 +121,16 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 		}
 	}()
 
-	searchName := filepath.Join(dirPatn, ID+"*")
-	matches, err := filepath.Glob(searchName)
-	if err != nil {
-		return fmt.Errorf("search files error: %w", err)
+	filesToRemove := []string{
+		filepath.Join(dirPatn, ID+".bin.tmp"),
+		filepath.Join(dirPatn, ID+".bin"),
+		filepath.Join(dirPatn, ID+".meta.json.tmp"),
+		filepath.Join(dirPatn, ID+".meta.json"),
 	}
 
-	for _, fileName := range matches {
+	for _, fileName := range filesToRemove {
 		err := os.Remove(fileName)
-		if err != nil {
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove file error: %w", err)
 		}
 	}
@@ -149,13 +156,16 @@ func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.File
 	fileName := filepath.Join(dirPatn, ID+".meta.json")
 	b, err := os.ReadFile(fileName)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, errs.ErrNotFound
+		}
 		return nil, fmt.Errorf("read file error: %w", err)
 	}
 
 	var fi filedata.FileInfo
 	err = json.Unmarshal(b, &fi)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshall info error: %w", err)
+		return nil, fmt.Errorf("unmarshal info error: %w", err)
 	}
 
 	return &fi, nil
@@ -175,6 +185,9 @@ func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.C
 	fileName := filepath.Join(dirPatn, ID+".bin")
 	b, err := os.ReadFile(fileName)
 	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, errs.ErrNotFound
+		}
 		return nil, fmt.Errorf("read file error: %w", err)
 	}
 
@@ -305,7 +318,9 @@ func syncDir(dirPatn string) error {
 	return nil
 }
 
-func logLongCall(ctx context.Context, fd *filedata.FileData, start time.Time, threshold time.Duration) {
+func logLongCall(ctx context.Context, fd *filedata.FileData, start time.Time) {
+	threshold := 2 * time.Second
+
 	t := time.Since(start)
 	if t < threshold {
 		return
