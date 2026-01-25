@@ -36,7 +36,7 @@ func TestServer_Authorization(t *testing.T) {
 			},
 		},
 		Log:   config.Log{Level: config.LogLevelError, Type: config.LogTypeText},
-		Image: config.Image{Ext: "jpeg", MaxDimention: 2000},
+		Image: config.Image{Ext: "jpeg", MaxDimension: 2000},
 	}
 
 	err := runServer(cfg, t)
@@ -101,7 +101,7 @@ func TestServer_Lifecycle(t *testing.T) {
 			},
 		},
 		Log:   config.Log{Level: config.LogLevelError, Type: config.LogTypeText},
-		Image: config.Image{Ext: "jpeg", MaxDimention: 2000},
+		Image: config.Image{Ext: "jpeg", MaxDimension: 2000},
 	}
 
 	err := runServer(cfg, t)

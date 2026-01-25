@@ -42,7 +42,7 @@ func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (strin
 		data := uc.Data
 		if uc.IsImage {
 			var err error
-			data, imageInfo, err = ProcessImage(data, s.cfg.Ext, s.cfg.MaxDimention, s.cfg.MaxDimention)
+			data, imageInfo, err = ProcessImage(data, s.cfg.Ext, s.cfg.MaxDimension, s.cfg.MaxDimension)
 			if err != nil {
 				return "", fmt.Errorf("image processing error: %w", err)
 			}
@@ -108,7 +108,7 @@ func (s *Service) Content(ctx context.Context, cc *filedata.ContentCommand) ([]b
 			return nil, fmt.Errorf("width must be between %d and %d: %w", minContentDimension, maxContentDimension, errs.ErrWrongUrlParameter)
 		}
 	} else {
-		width = s.cfg.MaxDimention
+		width = s.cfg.MaxDimension
 	}
 
 	if cc.Height != nil {
@@ -117,7 +117,7 @@ func (s *Service) Content(ctx context.Context, cc *filedata.ContentCommand) ([]b
 			return nil, fmt.Errorf("height must be between %d and %d: %w", minContentDimension, maxContentDimension, errs.ErrWrongUrlParameter)
 		}
 	} else {
-		height = s.cfg.MaxDimention
+		height = s.cfg.MaxDimension
 	}
 
 	cd, err := s.storage.Content(ctx, cc.ID)

@@ -42,11 +42,11 @@ func TestUpdate(t *testing.T) {
 
 	var callUpsert bool
 	ctx := context.Background()
-	cfg := &config.Image{Ext: "jpeg", MaxDimention: 1000}
+	cfg := &config.Image{Ext: "jpeg", MaxDimension: 1000}
 
 	storageError := fmt.Errorf("storage error")
 
-	img := imaging.New(cfg.MaxDimention, cfg.MaxDimention, color.Black)
+	img := imaging.New(cfg.MaxDimension, cfg.MaxDimension, color.Black)
 	imagingFormat, err := imaging.FormatFromExtension(cfg.Ext)
 	if err != nil {
 		t.Fatalf("test image format definition: %v", err)
@@ -154,9 +154,9 @@ func TestContent(t *testing.T) {
 	storageError := fmt.Errorf("storage error")
 
 	ctx := context.Background()
-	cfg := &config.Image{Ext: "jpeg", MaxDimention: 1000}
+	cfg := &config.Image{Ext: "jpeg", MaxDimension: 1000}
 
-	img := imaging.New(cfg.MaxDimention, cfg.MaxDimention, color.Black)
+	img := imaging.New(cfg.MaxDimension, cfg.MaxDimension, color.Black)
 	imagingFormat, err := imaging.FormatFromExtension(cfg.Ext)
 	if err != nil {
 		t.Fatalf("test image format definition: %v", err)
@@ -282,7 +282,7 @@ func TestContent(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
-	cfg := config.Image{Ext: "jpeg", MaxDimention: 1000}
+	cfg := config.Image{Ext: "jpeg", MaxDimension: 1000}
 	ctx := context.Background()
 
 	storageError := fmt.Errorf("storage error")
@@ -335,7 +335,7 @@ func TestInfo(t *testing.T) {
 func TestDelete(t *testing.T) {
 
 	ctx := context.Background()
-	cfg := config.Image{Ext: "jpeg", MaxDimention: 1000}
+	cfg := config.Image{Ext: "jpeg", MaxDimension: 1000}
 	storageError := fmt.Errorf("storage error")
 
 	table := []struct {

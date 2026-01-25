@@ -20,7 +20,7 @@ func getConfig() (*config.Config, error) {
 	pflag.Duration("timeout", 5*time.Second, "request timeout")
 	pflag.Int("sizelimit", 0, "sizelimit")
 	pflag.String("imageext", "", "stored image format")
-	pflag.Int("imagemaxdimention", 0, "max stored image dimention")
+	pflag.Int("imageMaxDimension", 0, "max stored image dimension")
 	pflag.String("storage", "", "storage")
 	pflag.String("fsstoragepath", "", "file system storage path")
 	pflag.Duration("fsstoragelocklifetime", 5*time.Second, "file system lock lifetime")
@@ -40,7 +40,7 @@ func logConfig(log *slog.Logger, cfg *config.Config) {
 		"sizelimit", cfg.App.SizeLimit,
 		"timeout", cfg.App.Timeout,
 		"image ext", cfg.Image.Ext,
-		"image max dimention", cfg.Image.MaxDimention,
+		"image max dimension", cfg.Image.MaxDimension,
 		"storage", cfg.App.Storage,
 		"file system storage path", cfg.Storage.FileSystem.Path,
 		"file system lock lifetime", cfg.Storage.FileSystem.LockLifetime,

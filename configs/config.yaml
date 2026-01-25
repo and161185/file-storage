@@ -10,7 +10,7 @@ log:
   type: "json"
 image:
   ext: "jpeg"
-  max_dimention: 2000
+  max_dimension: 2000
 storage:
   filesystem:
     path: "./data"

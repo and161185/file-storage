@@ -51,7 +51,7 @@ type Security struct {
 
 type Image struct {
 	Ext          string `json:"ext" yaml:"ext"`
-	MaxDimention int    `json:"width" yaml:"max_dimention"`
+	MaxDimension int    `json:"width" yaml:"max_dimension"`
 }
 
 type FileSystem struct {
@@ -118,7 +118,7 @@ func defaults() Config {
 		},
 		Image: Image{
 			Ext:          "jpeg",
-			MaxDimention: 2000},
+			MaxDimension: 2000},
 	}
 	return cfg
 }
@@ -205,13 +205,13 @@ func applyEnv(cfg *Config) error {
 		cfg.Image.Ext = sImageExt
 	}
 
-	sImageMaxDimention := os.Getenv("FILE_STORAGE_IMAGE_MAX_DIMENTION")
-	if sImageMaxDimention != "" {
-		maxDim, err := strconv.Atoi(sImageMaxDimention)
+	sImageMaxDimension := os.Getenv("FILE_STORAGE_IMAGE_MAX_DIMENSION")
+	if sImageMaxDimension != "" {
+		maxDim, err := strconv.Atoi(sImageMaxDimension)
 		if err != nil {
 			return err
 		}
-		cfg.Image.MaxDimention = maxDim
+		cfg.Image.MaxDimension = maxDim
 	}
 
 	sStorage := os.Getenv("FILE_STORAGE_STORAGE")
@@ -302,14 +302,14 @@ func applyFlags(cfg *Config) error {
 		cfg.Image.Ext = fImageExt.Value.String()
 	}
 
-	fImageMaxDimention := pflag.Lookup("imagemaxdimention")
-	if fImageMaxDimention != nil && fImageMaxDimention.Changed {
-		raw := fImageMaxDimention.Value.String()
+	fImageMaxDimension := pflag.Lookup("imageMaxDimension")
+	if fImageMaxDimension != nil && fImageMaxDimension.Changed {
+		raw := fImageMaxDimension.Value.String()
 		maxDim, err := strconv.Atoi(raw)
 		if err != nil {
 			return err
 		}
-		cfg.Image.MaxDimention = maxDim
+		cfg.Image.MaxDimension = maxDim
 	}
 
 	fStorage := pflag.Lookup("storage")
@@ -364,8 +364,8 @@ func validate(cfg *Config) error {
 		return errs.ErrConfigInvalidImageFormat
 	}
 
-	if cfg.Image.MaxDimention < 1000 || cfg.Image.MaxDimention > 10000 {
-		return errs.ErrConfigImageDimentionOutOfRange
+	if cfg.Image.MaxDimension < 1000 || cfg.Image.MaxDimension > 10000 {
+		return errs.ErrConfigImageDimensionOutOfRange
 	}
 
 	if cfg.App.Security.ReadToken == "" {
