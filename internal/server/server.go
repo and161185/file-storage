@@ -44,7 +44,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Get("/files/{id}/info", handlers.InfoHandler(s.Service))
 	r.Get("/files/{id}/content", handlers.ContentHandler(s.Service))
 	r.Post("/files/upload", handlers.UploadHandler(s.Service))
-	r.Delete("/files/{id}", handlers.DeleteHandler(s.Service))
+	r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.Service))
 
 	s.httpServer = &http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },

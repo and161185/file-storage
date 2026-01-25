@@ -265,7 +265,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	}
 
 	//delete
-	requestDelete := newRequest("DELETE", "http://"+serverUrl+"/files/"+id, nil, t)
+	requestDelete := newRequest("DELETE", "http://"+serverUrl+"/files/"+id+"/delete", nil, t)
 	requestDelete.Header.Add("Authorization", "Bearer 2")
 
 	responseDelete, err := client.Do(requestDelete)
