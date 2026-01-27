@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"file-storage/internal/config"
 	"file-storage/internal/files"
 	"file-storage/internal/logger"
 	"file-storage/internal/server"
+	"file-storage/internal/storage/filesystemstorage"
 	"file-storage/internal/storage/inmemory"
 	"os"
 	"os/signal"
@@ -15,19 +17,27 @@ import (
 func main() {
 	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")
 
-	config, err := getConfig()
+	cfg, err := getConfig()
 	if err != nil {
 		bootstrapLogger.Error("load configuration error", "error", err)
 		os.Exit(1)
 	}
 
-	log := logger.New(&config.Log).With("service", "file-storage")
+	log := logger.New(&cfg.Log).With("service", "file-storage")
 
-	logConfig(log, config)
+	logConfig(log, cfg)
 
-	storage := inmemory.New()
-	svc := files.NewService(&config.Image, storage)
-	srv := server.NewServer(&config.App, svc, log)
+	var storage files.Storage
+
+	switch cfg.App.Storage {
+	case config.StorageInmemory:
+		storage = inmemory.New()
+	case config.StorageFileSystem:
+		storage = filesystemstorage.New(&cfg.Storage.FileSystem)
+	}
+
+	svc := files.NewService(&cfg.Image, storage)
+	srv := server.NewServer(&cfg.App, svc, log)
 
 	ctx := context.Background()
 	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
@@ -35,7 +45,7 @@ func main() {
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.Run(ctx, config.App.Security)
+		errCh <- srv.Run(ctx, cfg.App.Security)
 	}()
 
 	select {
