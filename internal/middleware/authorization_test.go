@@ -30,8 +30,8 @@ func TestAuthorization(t *testing.T) {
 		wantStatus int
 		wantAuth   *authorization.Auth
 	}{
-		{name: "unauthorized wrong", auth: "Bearer 443", wantCalled: false, wantStatus: http.StatusUnauthorized},
-		{name: "unauthorized no header", auth: "", wantCalled: false, wantStatus: http.StatusUnauthorized},
+		{name: "unauthorized wrong", auth: "Bearer 443", wantCalled: true, wantStatus: -1, wantAuth: &authorization.Auth{Read: false, Write: false}},
+		{name: "unauthorized no header", auth: "", wantCalled: true, wantStatus: -1, wantAuth: &authorization.Auth{Read: false, Write: false}},
 		{name: "authorized read", auth: "Bearer 111", wantCalled: true, wantStatus: -1, wantAuth: &authorization.Auth{Read: true, Write: false}},
 		{name: "authorized write", auth: "Bearer 222", wantCalled: true, wantStatus: -1, wantAuth: &authorization.Auth{Read: true, Write: true}},
 	}

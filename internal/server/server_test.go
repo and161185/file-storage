@@ -54,22 +54,22 @@ func TestServer_Authorization(t *testing.T) {
 		{
 			name:       "info",
 			request:    newRequest("GET", "http://"+serverUrl+"/files/1/info", nil, t),
-			wantStatus: http.StatusUnauthorized,
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "delete",
-			request:    newRequest("GET", "http://"+serverUrl+"/files/1/ideletefo", nil, t),
-			wantStatus: http.StatusUnauthorized,
+			request:    newRequest("DELETE", "http://"+serverUrl+"/files/1/delete", nil, t),
+			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "content",
 			request:    newRequest("GET", "http://"+serverUrl+"/files/1/content", nil, t),
-			wantStatus: http.StatusUnauthorized,
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "upload",
-			request:    newRequest("GET", "http://"+serverUrl+"/files/upload", nil, t),
-			wantStatus: http.StatusUnauthorized,
+			request:    newRequest("POST", "http://"+serverUrl+"/files/upload", nil, t),
+			wantStatus: http.StatusForbidden,
 		},
 	}
 

@@ -15,19 +15,11 @@ func Authorization(security config.Security) func(next http.Handler) http.Handle
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			token := r.Header.Get("Authorization")
-			if token == "" {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
+			tokenValue := ""
+			if token != "" {
+				tokenSlice := strings.Fields(token)
+				tokenValue = tokenSlice[len(tokenSlice)-1]
 			}
-
-			tokenSlice := strings.Fields(token)
-			if len(tokenSlice) < 2 ||
-				strings.ToLower(tokenSlice[0]) != "bearer" {
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-
-			tokenValue := tokenSlice[len(tokenSlice)-1]
 
 			auth := authorization.Auth{}
 			switch tokenValue {
@@ -38,8 +30,8 @@ func Authorization(security config.Security) func(next http.Handler) http.Handle
 				auth.Read = true
 				auth.Write = true
 			default:
-				w.WriteHeader(http.StatusUnauthorized)
-				return
+				auth.Read = false
+				auth.Write = false
 			}
 
 			ctxAuth := context.WithValue(r.Context(), contextkeys.ContextKeyAuth, &auth)
