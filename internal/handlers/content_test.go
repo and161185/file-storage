@@ -22,20 +22,6 @@ func TestContentHandler(t *testing.T) {
 		wantStatus int
 	}{
 		{
-			name:       "no auth structure",
-			service:    &mockService{},
-			ctx:        newContext(nil, nil),
-			request:    newHttpTestRequest("GET", "/", ""),
-			wantStatus: http.StatusInternalServerError,
-		},
-		{
-			name:       "no rights",
-			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Read: false}, nil),
-			request:    newHttpTestRequest("GET", "/", ""),
-			wantStatus: http.StatusForbidden,
-		},
-		{
 			name:       "invalid id",
 			service:    &mockService{},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": "12"}),

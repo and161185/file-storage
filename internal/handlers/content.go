@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"file-storage/internal/authorization"
-	"file-storage/internal/contextkeys"
 	"file-storage/internal/errs"
 	"file-storage/internal/filedata"
 	"file-storage/internal/handlers/httpdto"
@@ -17,24 +15,13 @@ import (
 
 // Content returns file content by ID.
 // The handler returns raw bytes and does not include metadata.
+// doesn't need authorisation
 func ContentHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		log := logger.FromContext(ctx)
 		log = logger.WithHandler(log, logger.HandlerContent)
-
-		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
-		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Error("failed to get Auth structure out of context")
-			return
-		}
-		if !auth.Read {
-			w.WriteHeader(http.StatusForbidden)
-			log.Warn("read access denied")
-			return
-		}
 
 		ID := strings.TrimSpace(chi.URLParam(r, "id"))
 
