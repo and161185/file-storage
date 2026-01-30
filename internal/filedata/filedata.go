@@ -25,6 +25,7 @@ type FileData struct {
 	ID        string
 	Data      []byte
 	Hash      string
+	Public    bool
 	FileSize  int
 	IsImage   bool
 	Format    imgproc.ImgFormat
@@ -38,6 +39,7 @@ type FileData struct {
 type FileInfo struct {
 	ID        string            `json:"id"`
 	Hash      string            `json:"hash"`
+	Public    bool              `json:"public"`
 	FileSize  int               `json:"file_size"`
 	IsImage   bool              `json:"is_image"`
 	Format    imgproc.ImgFormat `json:"format"`
@@ -63,6 +65,7 @@ func FileInfoFromFileData(fd *FileData) *FileInfo {
 	fi := FileInfo{
 		ID:        fd.ID,
 		Hash:      fd.Hash,
+		Public:    fd.Public,
 		FileSize:  fd.FileSize,
 		IsImage:   fd.IsImage,
 		Format:    fd.Format,
