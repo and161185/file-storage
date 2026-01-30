@@ -1,5 +1,74 @@
-# FILE-Storage 
-service developed for storing images and documents.
-images can be dowloaded in necessary format and resolution
+# File-Storage
 
+Production-oriented file storage service written in Go for use in a corporate network.
 
+Primary use cases:
+- product images for marketplaces
+- internal documents and media files
+
+The service supports controlled public access for selected files.
+
+---
+
+## Features
+
+- Store and retrieve files by ID
+- Idempotent upsert and delete
+- Image processing (resize)
+- Public / private access model
+- Filesystem-based storage (no DB)
+
+---
+
+## Image processing
+
+The service determines whether a file is an image using:
+- explicit `is_image` flag in the request, or
+- automatic detection from binary data if the flag is omitted
+
+If the file is an image:
+- its dimensions are reduced so that the longest side does not exceed  
+  `image.max_dimension` from config
+- the processed image is stored in the format defined by `image.ext`
+
+Non-image files are stored **as-is**, without modification.
+
+---
+
+## Supported formats
+
+### Input formats
+- JPEG
+- PNG
+- BMP
+- GIF
+- TIFF
+- WebP
+
+### Storage format for images
+- JPEG
+- PNG
+- BMP
+- GIF
+
+---
+
+## Access model
+
+Access control is based on the `app.security` configuration section.
+
+- **Public files**
+  - content does not require authorization
+- **Non-public files**
+  - content require authorization
+- Metadata (`info`) and all write operations always require authorization
+
+Public visibility is a business-level property of a file.
+
+---
+
+## How to build and run
+
+```bash
+go build -o bin/filestorage ./cmd
+./bin/filestorage --config configs/config.yaml
