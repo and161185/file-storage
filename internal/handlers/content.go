@@ -6,6 +6,7 @@ import (
 	"file-storage/internal/handlers/httpdto"
 	"file-storage/internal/logger"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,7 +46,10 @@ func ContentHandler(svc Service) http.HandlerFunc {
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write(content)
+		_, err = w.Write(content)
+		if err != nil {
+			log.Error("write body error", slog.Any(logger.LogFieldError, err))
+		}
 	}
 }
 

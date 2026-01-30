@@ -1,0 +1,29 @@
+run:
+  timeout: 3m
+  tests: true
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - ineffassign
+    - unused
+    - gosimple
+    - typecheck
+    - revive
+
+linters-settings:
+  revive:
+    rules:
+      - name: var-naming
+        disabled: true
+      - name: line-length-limit
+        disabled: true
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - revive
