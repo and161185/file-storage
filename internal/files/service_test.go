@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"file-storage/internal/authorization"
 	"file-storage/internal/config"
+	"file-storage/internal/contextkeys"
 	"file-storage/internal/errs"
 	"file-storage/internal/filedata"
 	"file-storage/internal/files"
 	"file-storage/internal/imgproc"
+	"file-storage/internal/logger"
 	"fmt"
 	"image/color"
 	"io"
@@ -60,6 +63,7 @@ func TestUpdate(t *testing.T) {
 		name           string
 		storage        *mockStorage
 		uploadCommand  *filedata.UploadCommand
+		ctx            context.Context
 		wantErr        error
 		wantID         string
 		wantCallUpsert bool
@@ -153,7 +157,6 @@ func TestContent(t *testing.T) {
 	zero := 0
 	storageError := fmt.Errorf("storage error")
 
-	ctx := context.Background()
 	cfg := &config.Image{Ext: "jpeg", MaxDimension: 1000}
 
 	img := imaging.New(cfg.MaxDimension, cfg.MaxDimension, color.Black)
@@ -170,6 +173,7 @@ func TestContent(t *testing.T) {
 		name           string
 		storage        *mockStorage
 		contentCommand *filedata.ContentCommand
+		ctx            context.Context
 		wantErr        error
 		wantCall       bool
 		wantBytes      []byte
@@ -181,11 +185,35 @@ func TestContent(t *testing.T) {
 					call = true
 					return nil, nil
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: false}, nil
+				},
 			},
 			contentCommand: &filedata.ContentCommand{
 				ID:    "1",
 				Width: &zero,
 			},
+			ctx:       newContext(&authorization.Auth{Read: false}),
+			wantErr:   errs.ErrAccessDenied,
+			wantCall:  false,
+			wantBytes: nil,
+		},
+		{
+			name: "width error",
+			storage: &mockStorage{
+				fnContent: func(ctx context.Context, ID string) (*filedata.ContentData, error) {
+					call = true
+					return nil, nil
+				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: true}, nil
+				},
+			},
+			contentCommand: &filedata.ContentCommand{
+				ID:    "1",
+				Width: &zero,
+			},
+			ctx:       newContext(&authorization.Auth{Read: true}),
 			wantErr:   errs.ErrWrongUrlParameter,
 			wantCall:  false,
 			wantBytes: nil,
@@ -197,11 +225,15 @@ func TestContent(t *testing.T) {
 					call = true
 					return nil, nil
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: true}, nil
+				},
 			},
 			contentCommand: &filedata.ContentCommand{
 				ID:     "1",
 				Height: &zero,
 			},
+			ctx:       newContext(&authorization.Auth{Read: true}),
 			wantErr:   errs.ErrWrongUrlParameter,
 			wantCall:  false,
 			wantBytes: nil,
@@ -213,10 +245,14 @@ func TestContent(t *testing.T) {
 					call = true
 					return nil, storageError
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: true}, nil
+				},
 			},
 			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
+			ctx:       newContext(&authorization.Auth{Read: true}),
 			wantErr:   storageError,
 			wantCall:  true,
 			wantBytes: nil,
@@ -230,10 +266,14 @@ func TestContent(t *testing.T) {
 					data := io.NopCloser(bytes.NewReader(b))
 					return &filedata.ContentData{Data: data, IsImage: true}, nil
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: true}, nil
+				},
 			},
 			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
+			ctx:       newContext(&authorization.Auth{Read: true}),
 			wantErr:   errs.ErrInvalidImage,
 			wantCall:  true,
 			wantBytes: nil,
@@ -246,10 +286,14 @@ func TestContent(t *testing.T) {
 					data := io.NopCloser(bytes.NewReader(imgBytes))
 					return &filedata.ContentData{Data: data, IsImage: true}, nil
 				},
+				fnInfo: func(ctx context.Context, ID string) (*filedata.FileInfo, error) {
+					return &filedata.FileInfo{Public: false}, nil
+				},
 			},
 			contentCommand: &filedata.ContentCommand{
 				ID: "1",
 			},
+			ctx:       newContext(&authorization.Auth{Read: true}),
 			wantErr:   nil,
 			wantCall:  true,
 			wantBytes: imgBytes,
@@ -260,7 +304,7 @@ func TestContent(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			call = false
 			s := files.NewService(cfg, tt.storage)
-			b, err := s.Content(ctx, tt.contentCommand)
+			b, err := s.Content(tt.ctx, tt.contentCommand)
 
 			if call != tt.wantCall {
 				t.Errorf("call mismatch got %v want %v", call, tt.wantCall)
@@ -372,4 +416,15 @@ func TestDelete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func newContext(a *authorization.Auth) context.Context {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, logger.NewBootstrap())
+
+	if a != nil {
+		ctx = context.WithValue(ctx, contextkeys.ContextKeyAuth, a)
+	}
+
+	return ctx
 }

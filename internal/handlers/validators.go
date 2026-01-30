@@ -98,6 +98,9 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 	case errors.Is(err, errs.ErrNotFound):
 		return http.StatusNotFound, true
 
+	case errors.Is(err, errs.ErrAccessDenied):
+		return http.StatusForbidden, true
+
 	default:
 		return http.StatusInternalServerError, false
 	}

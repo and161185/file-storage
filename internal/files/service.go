@@ -2,7 +2,9 @@ package files
 
 import (
 	"context"
+	"file-storage/internal/authorization"
 	"file-storage/internal/config"
+	"file-storage/internal/contextkeys"
 	"file-storage/internal/errs"
 	"file-storage/internal/filedata"
 	"fmt"
@@ -91,6 +93,20 @@ func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (strin
 // Content returns file content by ID with optional image transformations.
 // The method returns only file bytes.
 func (s *Service) Content(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
+
+	auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
+	if !ok {
+		return nil, fmt.Errorf("failed to get Auth structure out of context: %w", errs.ErrContextValueError)
+	}
+
+	fi, err := s.Info(ctx, cc.ID)
+	if err != nil {
+		return nil, fmt.Errorf("storage info error: %w", err)
+	}
+
+	if !fi.Public && !auth.Read {
+		return nil, errs.ErrAccessDenied
+	}
 
 	var format string
 	var width int
