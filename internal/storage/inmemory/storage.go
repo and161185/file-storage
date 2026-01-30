@@ -36,7 +36,7 @@ func (s *MemoryStorage) Upsert(ctx context.Context, fd *filedata.FileData) (stri
 		return "", errs.ErrInvalidID
 	}
 
-	value := copyFileData(fd)
+	value := copyFileData(fd, s.storage[fd.ID])
 
 	s.storage[fd.ID] = value
 
@@ -89,7 +89,7 @@ func (s *MemoryStorage) Delete(ctx context.Context, ID string) error {
 	return nil
 }
 
-func copyFileData(fd *filedata.FileData) *filedata.FileData {
+func copyFileData(fd *filedata.FileData, currentValue *filedata.FileData) *filedata.FileData {
 	value := *fd
 
 	if fd.Metadata != nil {
@@ -104,6 +104,12 @@ func copyFileData(fd *filedata.FileData) *filedata.FileData {
 		b := make([]byte, len(fd.Data))
 		copy(b, fd.Data)
 		value.Data = b
+	} else {
+		if currentValue != nil && currentValue.Data != nil {
+			b := make([]byte, len(currentValue.Data))
+			copy(b, currentValue.Data)
+			value.Data = b
+		}
 	}
 
 	return &value

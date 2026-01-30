@@ -39,6 +39,12 @@ func TestUpsert(t *testing.T) {
 			wantID:  "1",
 			wantErr: nil,
 		},
+		{
+			name:    "upsert 2",
+			fd:      &filedata.FileData{ID: "1"},
+			wantID:  "1",
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range table {

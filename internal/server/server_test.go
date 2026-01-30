@@ -9,9 +9,11 @@ import (
 	"file-storage/internal/config"
 	"file-storage/internal/files"
 	"file-storage/internal/handlers/httpdto"
+	"file-storage/internal/imgproc"
 	"file-storage/internal/logger"
 	"file-storage/internal/storage/inmemory"
 	"fmt"
+	"image/color"
 	"io"
 	"log"
 	"net"
@@ -20,6 +22,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/disintegration/imaging"
 )
 
 func TestServer_Authorization(t *testing.T) {
@@ -89,6 +93,21 @@ func TestServer_Authorization(t *testing.T) {
 }
 
 func TestServer_Lifecycle(t *testing.T) {
+
+	w := 100
+	h := 100
+	format := "jpeg"
+	img := imaging.New(w, h, color.Black)
+	imagingFormat, err := imaging.FormatFromExtension(format)
+	if err != nil {
+		t.Fatalf("test image format definition: %v", err)
+	}
+
+	uploadData, err := imgproc.Encode(img, imagingFormat)
+	if err != nil {
+		t.Fatalf("test image creation error: %v", err)
+	}
+
 	cfg := config.Config{
 		App: config.App{
 			Host:      "127.0.0.1",
@@ -104,7 +123,7 @@ func TestServer_Lifecycle(t *testing.T) {
 		Image: config.Image{Ext: "jpeg", MaxDimension: 2000},
 	}
 
-	err := runServer(cfg, t)
+	err = runServer(cfg, t)
 	if err != nil {
 		t.Fatalf("run server error: %v", err)
 	}
@@ -112,7 +131,6 @@ func TestServer_Lifecycle(t *testing.T) {
 	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
 
 	client := http.DefaultClient
-	uploadData := []byte("some data")
 
 	//upload
 	ur := httpdto.UploadRequest{

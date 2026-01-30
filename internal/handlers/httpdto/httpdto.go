@@ -4,7 +4,7 @@ type UploadRequest struct {
 	ID       string         `json:"id"`
 	Data     []byte         `json:"data"`
 	Hash     string         `json:"hash"`
-	Public   bool           `json:"bool"`
+	Public   bool           `json:"public"`
 	IsImage  *bool          `json:"is_image"`
 	Metadata map[string]any `json:"metadata"`
 }
