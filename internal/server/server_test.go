@@ -200,6 +200,7 @@ func TestServer_Lifecycle(t *testing.T) {
 		ID:       id,
 		Data:     uploadData2,
 		Metadata: map[string]any{"field1": 3.0, "field2": "1"},
+		Public:   true,
 	}
 	sum = sha256.Sum256(ur2.Data)
 	ur2.Hash = hex.EncodeToString(sum[:])
@@ -280,6 +281,10 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	if !reflect.DeepEqual(ur2.Metadata, infoAnswer["metadata"]) {
 		t.Errorf("info metadata mismatch got %v want %v", infoAnswer["metadata"], ur2.Metadata)
+	}
+
+	if ur2.Public != infoAnswer["public"].(bool) {
+		t.Errorf("public property mismatch got %v want %v", infoAnswer["public"].(bool), ur2.Public)
 	}
 
 	//delete
