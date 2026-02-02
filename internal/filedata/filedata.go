@@ -10,6 +10,7 @@ type UploadCommand struct {
 	ID       string
 	Data     []byte
 	Hash     string
+	Public   bool
 	IsImage  bool
 	Metadata map[string]any
 }

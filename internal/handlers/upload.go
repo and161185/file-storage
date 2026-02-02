@@ -61,6 +61,7 @@ func UploadHandler(svc Service) http.HandlerFunc {
 		var uc filedata.UploadCommand
 		uc.ID = ur.ID
 		uc.Hash = ur.Hash
+		uc.Public = ur.Public
 		uc.Data = ur.Data
 		uc.Metadata = ur.Metadata
 		if ur.IsImage == nil {
