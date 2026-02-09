@@ -1,15 +1,15 @@
 # Handlers
-## GET /info
+## GET /files/{id}/info
     200 - Ok
-    404 - NotFound
-    422 - FormatUnsupported
+    404 - Not Found
+    422 - Unprocessable Entity
 
-## GET /content
+## GET /files/{id}/content
     200 - Ok
-    404 - NotFound
-    422 - FormatUnsupported
+    404 - Not Found
+    422 - Unprocessable Entity
 
-## POST /upload
+## POST /files/upload
     201 Created
     - new file created (no id OR id not found)
 
@@ -30,7 +30,7 @@
     - provided hash doesn’t match calculated one
     - no data to upload
 
-## DELETE /delete
+## DELETE /files/{id}/delete
     204 - No Content
     (delete is idempotent)
 
@@ -39,8 +39,8 @@
 
 # Logic
 ## File
-File consist of 
-1. ID 36 symbols
+File consists of: 
+1. ID 36 characters
 2. Binary data
 3. Metadata (JSON, any fields you want)
 4. Hash
@@ -97,4 +97,46 @@ check request body size
 ## 6.Authorization
 access control through Token
 identity derived from Token stored in context
+Authorization middleware performs token validation only.
+Final access decisions for file content are made in business logic.
 
+## Examples
+
+### Get file content (public file)
+
+```bash
+curl -X GET \
+  "http://localhost:8080/files/{id}/content"
+```
+
+For non-public files, authorization is required:
+
+```bash
+curl -X GET \
+  "http://localhost:8080/files/{id}/content" \
+  -H "Authorization: Bearer <token>"
+```
+
+### Upload file
+
+```bash
+curl -X POST \
+  "http://localhost:8080/files/upload" \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "optional-file-id",
+    "data": "<base64-encoded-binary>",
+    "hash": "<sha256-hash>",
+    "isImage": true,
+    "metadata": {
+      "any": "custom fields"
+    }
+  }'
+```
+
+Notes:
+
+id is optional; if omitted, a new file is created
+upload is idempotent only when an explicit id is provided
+metadata is user-defined and not interpreted by the service
