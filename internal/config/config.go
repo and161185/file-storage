@@ -252,7 +252,7 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Port = port
 	}
 
-	fHost := pflag.Lookup("readtoken")
+	fHost := pflag.Lookup("host")
 	if fHost != nil && fHost.Changed {
 		cfg.App.Host = fHost.Value.String()
 	}

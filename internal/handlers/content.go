@@ -16,7 +16,7 @@ import (
 
 // Content returns file content by ID.
 // The handler returns raw bytes and does not include metadata.
-// doesn't need authorisation
+// Authorization is required only for private files.
 func ContentHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

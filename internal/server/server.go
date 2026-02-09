@@ -28,7 +28,7 @@ type Server struct {
 }
 
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
-	return &Server{port: config.Port, sizelimit: config.SizeLimit, timeout: config.Timeout, Service: svc, Log: log}
+	return &Server{host: config.Host, port: config.Port, sizelimit: config.SizeLimit, timeout: config.Timeout, Service: svc, Log: log}
 }
 
 func (s *Server) Run(ctx context.Context, authCfg config.Security) error {

@@ -89,7 +89,7 @@ func TestUpdate(t *testing.T) {
 			wantCallUpsert: false,
 		},
 		{
-			name: "storage error",
+			name: "get info error",
 			storage: &mockStorage{
 				fnUpsert: func(ctx context.Context, fd *filedata.FileData) (string, error) {
 					callUpsert = true

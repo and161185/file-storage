@@ -43,11 +43,6 @@ func (s *MemoryStorage) Upsert(ctx context.Context, fd *filedata.FileData) (stri
 	return fd.ID, nil
 }
 
-func Delete(ctx context.Context, ID string) error {
-
-	return nil
-}
-
 func (s *MemoryStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]

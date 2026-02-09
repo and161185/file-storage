@@ -57,7 +57,7 @@ func TestDeleteHandler(t *testing.T) {
 			}},
 			ctx:        newContext(&authorization.Auth{Write: true}, map[string]string{"id": correctID}),
 			request:    newHttpTestRequest("DELETE", "/", ""),
-			wantStatus: http.StatusOK,
+			wantStatus: http.StatusNoContent,
 		},
 	}
 

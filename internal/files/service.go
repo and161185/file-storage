@@ -2,6 +2,7 @@ package files
 
 import (
 	"context"
+	"errors"
 	"file-storage/internal/authorization"
 	"file-storage/internal/config"
 	"file-storage/internal/contextkeys"
@@ -32,8 +33,17 @@ func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (strin
 
 	updateData := true
 	createdAt := time.Now()
-	fi, err := s.Info(ctx, uc.ID)
-	if err == nil {
+
+	var fi *filedata.FileInfo
+	if uc.ID != "" {
+		var err error
+		fi, err = s.Info(ctx, uc.ID)
+		if err != nil && !errors.Is(err, errs.ErrNotFound) {
+			return "", fmt.Errorf("file information observing error: %w", err)
+		}
+	}
+
+	if fi != nil {
 		updateData = uc.Hash != fi.Hash
 		createdAt = fi.CreatedAt
 	}

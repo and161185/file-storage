@@ -10,11 +10,8 @@
     422 - Unprocessable Entity
 
 ## POST /files/upload
-    201 Created
-    - new file created (no id OR id not found)
-
     200 OK
-    - file existed:
+    - file existed or new file created 
     - hash different → file replaced
     - hash same → binary preserved, metadata updated
 

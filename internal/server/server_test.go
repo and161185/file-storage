@@ -296,7 +296,7 @@ func TestServer_Lifecycle(t *testing.T) {
 		t.Errorf("delete request error: %v", err)
 	}
 
-	if responseDelete.StatusCode != http.StatusOK {
+	if responseDelete.StatusCode != http.StatusNoContent {
 		t.Errorf("delete status %v want %v", responseDelete.StatusCode, http.StatusOK)
 	}
 
