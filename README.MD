@@ -13,7 +13,7 @@ The service supports controlled public access for selected files.
 ## Features
 
 - Store and retrieve files by ID
-- Idempotent upsert and delete
+- Idempotent delete; upsert is idempotent when an explicit file ID is provided
 - Image processing (resize)
 - Public / private access model
 - Filesystem-based storage (no DB)
@@ -28,7 +28,7 @@ The service determines whether a file is an image using:
 
 If the file is an image:
 - its dimensions are reduced so that the longest side does not exceed  
-  `image.max_dimension` from config
+  `image.max_dimension` from the configuration
 - the processed image is stored in the format defined by `image.ext`
 
 Non-image files are stored **as-is**, without modification.
@@ -60,7 +60,7 @@ Access control is based on the `app.security` configuration section.
 - **Public files**
   - content does not require authorization
 - **Non-public files**
-  - content require authorization
+  - content requires  authorization
 - Metadata (`info`) and all write operations always require authorization
 
 Public visibility is a business-level property of a file.
