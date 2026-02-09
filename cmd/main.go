@@ -8,16 +8,45 @@ import (
 	"file-storage/internal/server"
 	"file-storage/internal/storage/filesystemstorage"
 	"file-storage/internal/storage/inmemory"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/spf13/pflag"
 )
 
+var version = "dev"
+
 func main() {
+
+	var showVersion bool
+	configPathFlag := pflag.String("config", "", "config file path")
+	pflag.BoolVar(&showVersion, "version", false, "print version and exit")
+	pflag.Int("port", 0, "application port")
+	pflag.String("host", "", "application host")
+	pflag.String("loglevel", "info", "log level")
+	pflag.String("logtype", "json", "log type")
+	pflag.String("readtoken", "", "read token")
+	pflag.String("writetoken", "", "write token")
+	pflag.Duration("timeout", 5*time.Second, "request timeout")
+	pflag.Int("sizelimit", 0, "sizelimit")
+	pflag.String("imageext", "", "stored image format")
+	pflag.Int("imageMaxDimension", 0, "max stored image dimension")
+	pflag.String("storage", "", "storage")
+	pflag.String("fsstoragepath", "", "file system storage path")
+	pflag.Duration("fsstoragelocklifetime", 5*time.Second, "file system lock lifetime")
+	pflag.Parse()
+
 	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")
 
-	cfg, err := getConfig()
+	if showVersion {
+		fmt.Println(version)
+		return
+	}
+
+	cfg, err := getConfig(*configPathFlag)
 	if err != nil {
 		bootstrapLogger.Error("load configuration error", "error", err)
 		os.Exit(1)
@@ -25,6 +54,7 @@ func main() {
 
 	log := logger.New(&cfg.Log).With("service", "file-storage")
 
+	log.Info("starting file-storage", "version", version)
 	logConfig(log, cfg)
 
 	var storage files.Storage

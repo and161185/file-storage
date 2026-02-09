@@ -45,7 +45,7 @@ Non-image files are stored **as-is**, without modification.
 - TIFF
 - WebP
 
-### Storage format for images
+### Storage formats for images
 - JPEG
 - PNG
 - BMP
@@ -60,7 +60,7 @@ Access control is based on the `app.security` configuration section.
 - **Public files**
   - content does not require authorization
 - **Non-public files**
-  - content requires  authorization
+  - content requires authorization
 - Metadata (`info`) and all write operations always require authorization
 
 Public visibility is a business-level property of a file.
@@ -72,3 +72,9 @@ Public visibility is a business-level property of a file.
 ```bash
 go build -o bin/filestorage ./cmd
 ./bin/filestorage --config configs/config.yaml
+```
+
+To build with a specific version:
+```bash
+go build -ldflags "-X main.version=0.1.0" -o bin/filestorage ./cmd
+```
