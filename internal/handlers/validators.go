@@ -92,7 +92,8 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 
 	case errors.Is(err, errs.ErrWrongIDLength),
 		errors.Is(err, errs.ErrMultipleIDsInQuery),
-		errors.Is(err, errs.ErrWrongUrlParameter):
+		errors.Is(err, errs.ErrWrongUrlParameter),
+		errors.Is(err, errs.ErrInvalidID):
 		return http.StatusBadRequest, true
 
 	case errors.Is(err, errs.ErrNotFound):
