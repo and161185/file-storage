@@ -2,6 +2,8 @@ package files
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"file-storage/internal/authorization"
 	"file-storage/internal/config"
@@ -44,32 +46,44 @@ func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (strin
 	}
 
 	if fi != nil {
-		updateData = uc.Hash != fi.Hash
+		updateData = (uc.Hash != fi.HashSource && uc.Hash != fi.HashStored)
 		createdAt = fi.CreatedAt
 	}
 
 	var fd filedata.FileData
+	var imageInfo *filedata.ImageInfo
+	newHashStored := ""
+
+	data := uc.Data
 	if updateData {
-		var imageInfo *filedata.ImageInfo
-		data := uc.Data
 		if uc.IsImage {
 			var err error
 			data, imageInfo, err = ProcessImage(data, s.cfg.Ext, s.cfg.MaxDimension, s.cfg.MaxDimension)
 			if err != nil {
 				return "", fmt.Errorf("image processing error: %w", err)
 			}
-		}
 
+			sum := sha256.Sum256(data)
+			newHashStored = hex.EncodeToString(sum[:])
+
+			if fi != nil {
+				updateData = fi.HashStored != newHashStored
+			}
+		}
+	}
+
+	if updateData {
 		fd = filedata.FileData{
-			ID:        uc.ID,
-			Data:      data,
-			Hash:      uc.Hash,
-			Public:    uc.Public,
-			IsImage:   uc.IsImage,
-			FileSize:  len(data),
-			Metadata:  uc.Metadata,
-			UpdatedAt: time.Now(),
-			CreatedAt: createdAt,
+			ID:         uc.ID,
+			Data:       data,
+			HashSource: uc.Hash,
+			HashStored: newHashStored,
+			Public:     uc.Public,
+			IsImage:    uc.IsImage,
+			FileSize:   len(data),
+			Metadata:   uc.Metadata,
+			UpdatedAt:  time.Now(),
+			CreatedAt:  createdAt,
 		}
 
 		if imageInfo != nil {
@@ -79,18 +93,19 @@ func (s *Service) Update(ctx context.Context, uc *filedata.UploadCommand) (strin
 		}
 	} else {
 		fd = filedata.FileData{
-			ID:        uc.ID,
-			Data:      nil,
-			Hash:      fi.Hash,
-			Public:    uc.Public,
-			IsImage:   fi.IsImage,
-			FileSize:  fi.FileSize,
-			Metadata:  uc.Metadata,
-			UpdatedAt: time.Now(),
-			CreatedAt: createdAt,
-			Format:    fi.Format,
-			Width:     fi.Width,
-			Height:    fi.Height,
+			ID:         uc.ID,
+			Data:       nil,
+			HashSource: fi.HashSource,
+			HashStored: fi.HashStored,
+			Public:     uc.Public,
+			IsImage:    fi.IsImage,
+			FileSize:   fi.FileSize,
+			Metadata:   uc.Metadata,
+			UpdatedAt:  time.Now(),
+			CreatedAt:  createdAt,
+			Format:     fi.Format,
+			Width:      fi.Width,
+			Height:     fi.Height,
 		}
 	}
 

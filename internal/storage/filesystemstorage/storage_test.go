@@ -50,7 +50,7 @@ func TestUpsert(t *testing.T) {
 		{
 			name:    "ok",
 			path:    t.TempDir(),
-			fd:      &filedata.FileData{ID: id, Data: data, Hash: "123", IsImage: false},
+			fd:      &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false},
 			wantErr: false,
 			wantID:  id,
 		},
@@ -107,7 +107,7 @@ func TestDelete(t *testing.T) {
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
-	fd := &filedata.FileData{ID: id, Data: data, Hash: "123", IsImage: false}
+	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
 	id, err := f.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
@@ -186,8 +186,8 @@ func TestInfo(t *testing.T) {
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
-	fd := &filedata.FileData{ID: id, Data: data, Hash: "123", IsImage: false}
-	wantFi := &filedata.FileInfo{ID: id, Hash: "123", IsImage: false}
+	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
+	wantFi := &filedata.FileInfo{ID: id, HashSource: "123", IsImage: false}
 	id, err := f.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
@@ -242,7 +242,7 @@ func TestContent(t *testing.T) {
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
-	fd := &filedata.FileData{ID: id, Data: data, Hash: "123", IsImage: false}
+	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
 
 	id, err := f.Upsert(ctx, fd)
 	if err != nil {

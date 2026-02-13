@@ -15,6 +15,7 @@ func Authorization(security config.Security) func(next http.Handler) http.Handle
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 			token := r.Header.Get("Authorization")
+
 			tokenValue := ""
 			if token != "" {
 				tokenSlice := strings.Fields(token)

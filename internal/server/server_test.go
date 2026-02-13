@@ -133,14 +133,17 @@ func TestServer_Lifecycle(t *testing.T) {
 	client := http.DefaultClient
 
 	//upload
+
 	ur := httpdto.UploadRequest{
 		ID:       "",
 		Data:     uploadData,
 		Metadata: map[string]any{"field1": 0, "field2": "0"},
 	}
+
 	sum := sha256.Sum256(ur.Data)
 	ur.Hash = hex.EncodeToString(sum[:])
 	dataJson, err := json.Marshal(ur)
+
 	if err != nil {
 		t.Fatalf("marshal error: %v", err)
 	}
@@ -149,6 +152,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	request.Header.Add("Authorization", "Bearer 2")
 
 	response, err := client.Do(request)
+
 	if err != nil {
 		t.Errorf("upload request error: %v", err)
 	}
@@ -162,11 +166,13 @@ func TestServer_Lifecycle(t *testing.T) {
 	defer response.Body.Close()
 
 	err = decoder.Decode(&uploadAnswer)
+
 	if err != nil {
 		t.Fatalf("upload response decode error: %v", err)
 	}
 
 	id := uploadAnswer["id"]
+
 	if len(id) != 36 {
 		t.Fatalf("got empty id from upload want 36 symbols length")
 	}
@@ -176,6 +182,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	request.Header.Add("Authorization", "Bearer 1")
 
 	responseContent, err := client.Do(request)
+
 	if err != nil {
 		t.Errorf("content request error: %v", err)
 	}
@@ -186,6 +193,7 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	b, err := io.ReadAll(responseContent.Body)
 	defer responseContent.Body.Close()
+
 	if err != nil {
 		t.Errorf("content response body read error: %v", err)
 	}
@@ -196,15 +204,18 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	//upload 2
 	uploadData2 := []byte("updated data")
+
 	ur2 := httpdto.UploadRequest{
 		ID:       id,
 		Data:     uploadData2,
 		Metadata: map[string]any{"field1": 3.0, "field2": "1"},
 		Public:   true,
 	}
+
 	sum = sha256.Sum256(ur2.Data)
 	ur2.Hash = hex.EncodeToString(sum[:])
 	dataJson, err = json.Marshal(ur2)
+
 	if err != nil {
 		t.Fatalf("marshal upload 2 error: %v", err)
 	}
@@ -213,6 +224,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	request.Header.Add("Authorization", "Bearer 2")
 
 	response2, err := client.Do(request)
+
 	if err != nil {
 		t.Errorf("upload 2 request error: %v", err)
 	}
@@ -225,11 +237,13 @@ func TestServer_Lifecycle(t *testing.T) {
 	defer response2.Body.Close()
 
 	err = decoder.Decode(&uploadAnswer)
+
 	if err != nil {
 		t.Fatalf("upload response decode error: %v", err)
 	}
 
 	id2 := uploadAnswer["id"]
+
 	if id != id2 {
 		t.Fatalf("id mismatch, got %s want %s", id2, id)
 	}
@@ -239,6 +253,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	requestC2.Header.Add("Authorization", "Bearer 2")
 
 	responseContent2, err := client.Do(requestC2)
+
 	if err != nil {
 		t.Errorf("content 2 request error: %v", err)
 	}
@@ -249,6 +264,7 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	b, err = io.ReadAll(responseContent2.Body)
 	defer responseContent2.Body.Close()
+
 	if err != nil {
 		t.Errorf("content 2 response body read error: %v", err)
 	}
@@ -262,6 +278,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	requestInfo.Header.Add("Authorization", "Bearer 1")
 
 	responseInfo, err := client.Do(requestInfo)
+
 	if err != nil {
 		t.Errorf("info request error: %v", err)
 	}
@@ -275,6 +292,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	defer responseInfo.Body.Close()
 
 	err = decoder.Decode(&infoAnswer)
+
 	if err != nil {
 		t.Errorf("info response body read error: %v", err)
 	}
@@ -292,6 +310,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	requestDelete.Header.Add("Authorization", "Bearer 2")
 
 	responseDelete, err := client.Do(requestDelete)
+
 	if err != nil {
 		t.Errorf("delete request error: %v", err)
 	}
@@ -305,6 +324,7 @@ func TestServer_Lifecycle(t *testing.T) {
 	requestC3.Header.Add("Authorization", "Bearer 2")
 
 	responseContent3, err := client.Do(requestC3)
+
 	if err != nil {
 		t.Errorf("content 3 request error: %v", err)
 	}
