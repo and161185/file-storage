@@ -76,5 +76,10 @@ go build -o bin/filestorage ./cmd
 
 To build with a specific version:
 ```bash
-go build -ldflags "-X main.version=0.1.0" -o bin/filestorage ./cmd
+go build -ldflags "-X main.version=$(git describe --tags --dirty --always)" -o bin/filestorage ./cmd
 ```
+
+To create a release version, tag the commit:
+
+    git tag v0.2.0
+    git push origin v0.2.0
