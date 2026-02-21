@@ -14,8 +14,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 type FileSystemStorage struct {
@@ -43,12 +44,12 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", fmt.Errorf("directory path creation error: %w", err)
 	}
 
-	err = lock(fd.ID, dirPatn, f.lockLifetime)
+	lockFile, err := lockAcquire(fd.ID, dirPatn)
 	if err != nil {
-		return "", fmt.Errorf("lock creation error: %w", err)
+		return "", fmt.Errorf("lock error: %w", err)
 	}
 	defer func() {
-		if err := unlock(fd.ID, dirPatn); err != nil {
+		if err := lockFile.Close(); err != nil {
 			logger.FromContext(ctx).Warn(
 				"unlock failed",
 				"id", fd.ID,
@@ -107,12 +108,12 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 		return err
 	}
 
-	err = lock(ID, dirPatn, f.lockLifetime)
+	lockFile, err := lockAcquire(ID, dirPatn)
 	if err != nil {
-		return fmt.Errorf("lock creation error: %w", err)
+		return fmt.Errorf("lock error: %w", err)
 	}
 	defer func() {
-		if err := unlock(ID, dirPatn); err != nil {
+		if err := lockFile.Close(); err != nil {
 			logger.FromContext(ctx).Warn(
 				"unlock failed",
 				"id", ID,
@@ -195,68 +196,22 @@ func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.C
 	return &filedata.ContentData{Data: data, IsImage: fi.IsImage}, nil
 }
 
-func lock(id string, dirPatn string, lockLifetime time.Duration) error {
+func lockAcquire(id string, dirPatn string) (*os.File, error) {
 
 	fn := lockFileName(dirPatn, id)
-	now := time.Now().UTC()
 
-	file, err := os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
-	if err == nil {
-		defer file.Close()
-	} else {
-		if errors.Is(err, fs.ErrExist) {
-			b, err := os.ReadFile(fn)
-			if err != nil {
-				return fmt.Errorf("lock file read error: %w", err)
-			}
-
-			lockContent := strings.TrimSpace(string(b))
-			t, err := time.Parse(time.RFC3339, lockContent)
-			if err != nil {
-				fileInfo, errStat := os.Stat(fn)
-				if errStat != nil {
-					return fmt.Errorf("lock file stat observing error: %w", errStat)
-				}
-				t = fileInfo.ModTime().Add(lockLifetime)
-			}
-
-			if now.Before(t) {
-				return errs.ErrStorageFileIsLocked
-			}
-
-			err = os.Remove(fn)
-			if err != nil {
-				return fmt.Errorf("remove lock file error: %w", err)
-			}
-
-			file, err = os.OpenFile(fn, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
-			if err != nil {
-				return fmt.Errorf("parallel lock file write error: %w", errs.ErrStorageFileIsLocked)
-			}
-			defer file.Close()
-		} else {
-			return fmt.Errorf("lock file open error: %w", err)
-		}
-	}
-
-	deadline := now.Add(lockLifetime).Format(time.RFC3339)
-	_, err = file.WriteString(deadline)
+	file, err := os.OpenFile(fn, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
-		return fmt.Errorf("lock file write error: %w", err)
+		return nil, fmt.Errorf("lock file open error: %w", err)
 	}
 
-	err = file.Sync()
+	err = unix.Flock(int(file.Fd()), unix.LOCK_EX)
 	if err != nil {
-		return fmt.Errorf("lock file sync error: %w", err)
+		_ = file.Close()
+		return nil, fmt.Errorf("lock file lock error: %w", err)
 	}
 
-	return nil
-}
-
-func unlock(id string, dirPatn string) error {
-	fn := lockFileName(dirPatn, id)
-	err := os.Remove(fn)
-	return err
+	return file, nil
 }
 
 func fileCatalog(path, id string) (string, error) {

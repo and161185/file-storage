@@ -86,10 +86,6 @@ func TestUpsert(t *testing.T) {
 				if err != nil {
 					t.Errorf("meta file not created")
 				}
-				_, err = os.Stat(lockFileName(dirPatn, id))
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Errorf("lock file not deleted")
-				}
 			}
 		})
 	}
@@ -165,10 +161,6 @@ func TestDelete(t *testing.T) {
 				_, err = os.Stat(filepath.Join(dirPatn, id+".meta.json"))
 				if !errors.Is(err, fs.ErrNotExist) {
 					t.Errorf("meta file not deleted")
-				}
-				_, err = os.Stat(lockFileName(dirPatn, id))
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Errorf("lock file not deleted")
 				}
 			}
 		})
