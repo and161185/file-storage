@@ -126,13 +126,14 @@ func (s *Service) Content(ctx context.Context, cc *filedata.ContentCommand) ([]b
 		return nil, fmt.Errorf("failed to get Auth structure out of context: %w", errs.ErrContextValueError)
 	}
 
-	fi, err := s.Info(ctx, cc.ID)
-	if err != nil {
-		return nil, fmt.Errorf("storage info error: %w", err)
-	}
-
-	if !fi.Public && !auth.Read {
-		return nil, errs.ErrAccessDenied
+	if !auth.Read {
+		fi, err := s.Info(ctx, cc.ID)
+		if err != nil {
+			return nil, fmt.Errorf("storage info error: %w", err)
+		}
+		if !fi.Public {
+			return nil, errs.ErrAccessDenied
+		}
 	}
 
 	var format string
