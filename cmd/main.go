@@ -8,6 +8,7 @@ import (
 	"file-storage/internal/server"
 	"file-storage/internal/storage/filesystemstorage"
 	"file-storage/internal/storage/inmemory"
+	"file-storage/internal/storage/metricsstorage"
 	"fmt"
 	"os"
 	"os/signal"
@@ -66,7 +67,8 @@ func main() {
 		storage = filesystemstorage.New(&cfg.Storage.FileSystem)
 	}
 
-	svc := files.NewService(&cfg.Image, storage)
+	metricStorage := metricsstorage.New(storage)
+	svc := files.NewService(&cfg.Image, metricStorage)
 	srv := server.NewServer(&cfg.App, svc, log)
 
 	ctx := context.Background()

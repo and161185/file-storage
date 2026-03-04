@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 type Server struct {
@@ -37,6 +38,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.RequestID(s.Log))
 	r.Use(middleware.Recovery)
 	r.Use(middleware.AccessLog)
+	r.Use(middleware.Metrics)
 	r.Use(middleware.Timeout(s.timeout))
 	r.Use(middleware.SizeLimit(int64(s.sizelimit)))
 	r.Use(middleware.Authorization(authCfg))
@@ -45,6 +47,8 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Get("/files/{id}/content", handlers.ContentHandler(s.Service))
 	r.Post("/files/upload", handlers.UploadHandler(s.Service))
 	r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.Service))
+
+	r.Get("/files/metrics", promhttp.Handler().ServeHTTP)
 
 	s.httpServer = &http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },

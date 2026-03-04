@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -331,6 +332,25 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	if responseContent3.StatusCode != http.StatusNotFound {
 		t.Errorf("got content 3 status %v want %v", responseContent3.StatusCode, http.StatusNotFound)
+	}
+
+	//metrics
+	requestM := newRequest("GET", "http://"+serverUrl+"/files/metrics", nil, t)
+	responseM, err := client.Do(requestM)
+
+	if err != nil {
+		t.Errorf("metrics request error: %v", err)
+	}
+
+	bodyBytes, err := io.ReadAll(responseM.Body)
+	if err != nil {
+		t.Fatalf("metrics request read error: %v", err)
+	}
+
+	body := string(bodyBytes)
+
+	if !strings.Contains(body, `http_requests_total{operation="/files/{id}/content",statusCode="200"} 2`) {
+		t.Error("metric not found")
 	}
 
 }
