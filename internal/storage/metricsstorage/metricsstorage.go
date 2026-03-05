@@ -59,10 +59,12 @@ func (ms *MetricsStorage) Content(ctx context.Context, ID string) (*filedata.Con
 
 	fd, err := ms.storage.Content(ctx, ID)
 
-	fd.Data = &countingReadCloser{rc: fd.Data,
-		onClose: func(n int64) {
-			metrics.FileBytesReadTotal.Add(float64(n))
-		},
+	if err == nil && fd != nil && fd.Data != nil {
+		fd.Data = &countingReadCloser{rc: fd.Data,
+			onClose: func(n int64) {
+				metrics.FileBytesReadTotal.Add(float64(n))
+			},
+		}
 	}
 
 	metrics.StorageOperationsDurationSeconds.WithLabelValues("content").Observe(time.Since(start).Seconds())
@@ -106,6 +108,8 @@ func (c *countingReadCloser) Read(p []byte) (int, error) {
 
 func (c *countingReadCloser) Close() error {
 	err := c.rc.Close()
-	c.onClose(c.n)
+	if c.onClose != nil {
+		c.onClose(c.n)
+	}
 	return err
 }
