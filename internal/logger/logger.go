@@ -39,6 +39,8 @@ const (
 	LogFieldPanic     = "panic"
 	LogFieldStack     = "stack"
 	LogFieldError     = "error"
+	LogFieldIP        = "IP"
+	LogFieldUserAgent = "user_agent"
 )
 
 func NewBootstrap() *slog.Logger {

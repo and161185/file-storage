@@ -3,7 +3,9 @@ package middleware
 import (
 	"file-storage/internal/contextkeys"
 	"file-storage/internal/logger"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -35,10 +37,27 @@ func AccessLog(next http.Handler) http.Handler {
 			logger.LogFieldStatus, statusCode,
 			logger.LogFieldDuration, duration,
 			logger.LogFieldRequestID, contextRequestID,
+			logger.LogFieldIP, clientIP(r),
+			logger.LogFieldUserAgent, r.UserAgent(),
 		)
 
 		l := logger.WithComponent(log, logger.ComponentMiddleware)
 		l = logger.WithMiddleware(l, logger.MiddlewareAccessLog)
 		l.Info("request", fields...)
 	})
+}
+
+func clientIP(r *http.Request) string {
+	ip := r.Header.Get("X-Forwarded-For")
+	if ip != "" {
+		parts := strings.Split(ip, ",")
+		return strings.TrimSpace(parts[0])
+	}
+
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+
+	return ip
 }

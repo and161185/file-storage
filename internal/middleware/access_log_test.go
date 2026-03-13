@@ -23,6 +23,7 @@ func TestAccessLog(t *testing.T) {
 	wwrapped := &responseWriter{rec, false, -1}
 
 	req := httptest.NewRequest("POST", "/ololo", http.NoBody)
+	req.Header.Add("X-Forwarded-For", "192.168.1.1")
 	ctx := context.WithValue(req.Context(), contextkeys.ContextKeyLogger, log)
 	req = req.WithContext(ctx)
 
