@@ -6,6 +6,7 @@ import (
 	"file-storage/internal/config"
 	"file-storage/internal/files"
 	"file-storage/internal/handlers"
+	"file-storage/internal/limiter"
 	"file-storage/internal/middleware"
 	"fmt"
 	"log/slog"
@@ -26,10 +27,24 @@ type Server struct {
 	timeout    time.Duration
 	httpServer *http.Server
 	Log        *slog.Logger
+	Limiter    *limiter.Limiter
 }
 
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
-	return &Server{host: config.Host, port: config.Port, sizelimit: config.SizeLimit, timeout: config.Timeout, Service: svc, Log: log}
+	return &Server{
+		host:      config.Host,
+		port:      config.Port,
+		sizelimit: config.SizeLimit,
+		timeout:   config.Timeout,
+		Service:   svc,
+		Log:       log,
+		Limiter: &limiter.Limiter{
+			Capacity:   float64(config.RateLimiter.Capacity),
+			RefillRate: float64(config.RateLimiter.RefillRate),
+			LastRefill: time.Now(),
+			Tokens:     float64(config.RateLimiter.Capacity),
+		},
+	}
 }
 
 func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
@@ -39,6 +54,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.Recovery)
 	r.Use(middleware.AccessLog)
 	r.Use(middleware.Metrics)
+	r.Use(middleware.RateLimiter(s.Limiter))
 	r.Use(middleware.Timeout(s.timeout))
 	r.Use(middleware.SizeLimit(int64(s.sizelimit)))
 	r.Use(middleware.Authorization(authCfg))

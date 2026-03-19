@@ -31,12 +31,13 @@ const (
 )
 
 type App struct {
-	Host      string        `json:"host" yaml:"host"`
-	Port      int           `json:"port" yaml:"port"`
-	Timeout   time.Duration `json:"timeout" yaml:"timeout"`
-	SizeLimit int           `json:"size_limit" yaml:"size_limit"`
-	Security  Security      `json:"security" yaml:"security"`
-	Storage   string        `json:"storage" yaml:"storage"`
+	Host        string        `json:"host" yaml:"host"`
+	Port        int           `json:"port" yaml:"port"`
+	Timeout     time.Duration `json:"timeout" yaml:"timeout"`
+	RateLimiter RateLimiter   `json:"rate_limiter" yaml:"rate_limiter"`
+	SizeLimit   int           `json:"size_limit" yaml:"size_limit"`
+	Security    Security      `json:"security" yaml:"security"`
+	Storage     string        `json:"storage" yaml:"storage"`
 }
 
 type Log struct {
@@ -47,6 +48,11 @@ type Log struct {
 type Security struct {
 	ReadToken  string `json:"read_token" yaml:"read_token"`
 	WriteToken string `json:"write_token" yaml:"write_token"`
+}
+
+type RateLimiter struct {
+	Capacity   int `json:"capacity" yaml:"capacity"`
+	RefillRate int `json:"refill_rate" yaml:"refill_rate"`
 }
 
 type Image struct {
@@ -111,6 +117,10 @@ func defaults() Config {
 			Port:      8080,
 			SizeLimit: defaultSizeLimit,
 			Timeout:   5 * time.Second,
+			RateLimiter: RateLimiter{
+				Capacity:   0,
+				RefillRate: 0,
+			},
 			Security: Security{
 				ReadToken:  "default token",
 				WriteToken: "default token",
@@ -178,6 +188,24 @@ func applyEnv(cfg *Config) error {
 			return err
 		}
 		cfg.App.Timeout = timeout
+	}
+
+	sCapacity := os.Getenv("FILE_STORAGE_RATE_LIMITER_CAPACITY")
+	if sCapacity != "" {
+		capacity, err := strconv.Atoi(sCapacity)
+		if err != nil {
+			return err
+		}
+		cfg.App.RateLimiter.Capacity = capacity
+	}
+
+	sRefillRate := os.Getenv("FILE_STORAGE_RATE_LIMITER_REFILL_RATE")
+	if sRefillRate != "" {
+		refillRate, err := strconv.Atoi(sRefillRate)
+		if err != nil {
+			return err
+		}
+		cfg.App.RateLimiter.RefillRate = refillRate
 	}
 
 	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
@@ -277,6 +305,26 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Timeout = timeout
 	}
 
+	fCapacity := pflag.Lookup("capacity")
+	if fCapacity != nil && fCapacity.Changed {
+		raw := fCapacity.Value.String()
+		capacity, err := strconv.Atoi(raw)
+		if err != nil {
+			return err
+		}
+		cfg.App.RateLimiter.Capacity = capacity
+	}
+
+	fRefillRate := pflag.Lookup("refill_rate")
+	if fRefillRate != nil && fRefillRate.Changed {
+		raw := fRefillRate.Value.String()
+		refillRate, err := strconv.Atoi(raw)
+		if err != nil {
+			return err
+		}
+		cfg.App.RateLimiter.RefillRate = refillRate
+	}
+
 	fReadToken := pflag.Lookup("readtoken")
 	if fReadToken != nil && fReadToken.Changed {
 		cfg.App.Security.ReadToken = fReadToken.Value.String()
@@ -350,6 +398,12 @@ func validate(cfg *Config) error {
 
 	if cfg.App.Timeout <= 0 {
 		return errs.ErrConfigInvalidTimeout
+	}
+
+	capacityEnabled := cfg.App.RateLimiter.Capacity > 0
+	refillRateEnabled := cfg.App.RateLimiter.RefillRate > 0
+	if capacityEnabled != refillRateEnabled {
+		return errs.ErrConfigInvalidRateLimiter
 	}
 
 	if cfg.Log.Type != LogTypeJSON && cfg.Log.Type != LogTypeText {

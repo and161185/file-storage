@@ -33,6 +33,8 @@ func main() {
 	pflag.String("writetoken", "", "write token")
 	pflag.Duration("timeout", 5*time.Second, "request timeout")
 	pflag.Int("sizelimit", 0, "sizelimit")
+	pflag.Int("capacity", 0, "maximum requests allowed at once (burst limit)")
+	pflag.Int("refill_rate", 0, "how many requests per second are allowed")
 	pflag.String("imageext", "", "stored image format")
 	pflag.Int("imageMaxDimension", 0, "max stored image dimension")
 	pflag.String("storage", "", "storage")
