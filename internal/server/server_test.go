@@ -111,10 +111,11 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	cfg := config.Config{
 		App: config.App{
-			Host:      "127.0.0.1",
-			Port:      8080,
-			Timeout:   5 * time.Second,
-			SizeLimit: 1024 * 1024,
+			Host:        "127.0.0.1",
+			Port:        8080,
+			Timeout:     5 * time.Second,
+			RateLimiter: config.RateLimiter{Capacity: 8, RefillRate: 1},
+			SizeLimit:   1024 * 1024,
 			Security: config.Security{
 				ReadToken:  "1",
 				WriteToken: "2",
@@ -332,6 +333,20 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	if responseContent3.StatusCode != http.StatusNotFound {
 		t.Errorf("got content 3 status %v want %v", responseContent3.StatusCode, http.StatusNotFound)
+	}
+
+	//content 4
+	requestC4 := newRequest("GET", "http://"+serverUrl+"/files/"+id+"/content", nil, t)
+	requestC4.Header.Add("Authorization", "Bearer 2")
+
+	responseContent4, err := client.Do(requestC4)
+
+	if err != nil {
+		t.Errorf("content 4 request error: %v", err)
+	}
+
+	if responseContent4.StatusCode != http.StatusTooManyRequests {
+		t.Errorf("got content 4 status %v want %v", responseContent4.StatusCode, http.StatusTooManyRequests)
 	}
 
 	//metrics

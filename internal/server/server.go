@@ -54,17 +54,23 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.Recovery)
 	r.Use(middleware.AccessLog)
 	r.Use(middleware.Metrics)
-	r.Use(middleware.RateLimiter(s.Limiter))
-	r.Use(middleware.Timeout(s.timeout))
-	r.Use(middleware.SizeLimit(int64(s.sizelimit)))
-	r.Use(middleware.Authorization(authCfg))
 
-	r.Get("/files/{id}/info", handlers.InfoHandler(s.Service))
-	r.Get("/files/{id}/content", handlers.ContentHandler(s.Service))
-	r.Post("/files/upload", handlers.UploadHandler(s.Service))
-	r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.Service))
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.RateLimiter(s.Limiter))
+		r.Use(middleware.Timeout(s.timeout))
+		r.Use(middleware.SizeLimit(int64(s.sizelimit)))
+		r.Use(middleware.Authorization(authCfg))
 
-	r.Get("/files/metrics", promhttp.Handler().ServeHTTP)
+		r.Get("/files/{id}/info", handlers.InfoHandler(s.Service))
+		r.Get("/files/{id}/content", handlers.ContentHandler(s.Service))
+		r.Post("/files/upload", handlers.UploadHandler(s.Service))
+		r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.Service))
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.Timeout(s.timeout))
+		r.Get("/files/metrics", promhttp.Handler().ServeHTTP)
+	})
 
 	s.httpServer = &http.Server{Addr: ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },
