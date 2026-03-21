@@ -4,6 +4,7 @@ app:
   rate_limiter:
     capacity: 500
     refill_rate: 300
+  concurrency_limit: 30
   security:
     read_token: "123"
     write_token: "321"
