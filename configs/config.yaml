@@ -1,6 +1,9 @@
 app:
   host: "0.0.0.0"
   port: 8888
+  rate_limiter:
+    capacity: 500
+    refill_rate: 300
   security:
     read_token: "123"
     write_token: "321"

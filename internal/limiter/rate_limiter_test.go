@@ -8,38 +8,38 @@ import (
 func TestAllow(t *testing.T) {
 	table := []struct {
 		name         string
-		l            *Limiter
+		l            *RateLimiter
 		iters_expect []bool
 		timeout      time.Duration
 	}{
 		{
 			name:         "no limiter",
-			l:            &Limiter{Capacity: 0, RefillRate: 10, LastRefill: time.Now(), Tokens: 0},
+			l:            &RateLimiter{capacity: 0, refillRate: 10, lastRefill: time.Now(), tokens: 0},
 			iters_expect: []bool{true},
 		},
 		{
 			name:         "no tokens",
-			l:            &Limiter{Capacity: 1, RefillRate: 10, LastRefill: time.Now(), Tokens: 0},
+			l:            &RateLimiter{capacity: 1, refillRate: 10, lastRefill: time.Now(), tokens: 0},
 			iters_expect: []bool{false},
 		},
 		{
 			name:         "tokens out",
-			l:            &Limiter{Capacity: 1, RefillRate: 10, LastRefill: time.Now(), Tokens: 1},
+			l:            &RateLimiter{capacity: 1, refillRate: 10, lastRefill: time.Now(), tokens: 1},
 			iters_expect: []bool{true, false},
 		},
 		{
 			name:         "clamp to capacity",
-			l:            &Limiter{Capacity: 1, RefillRate: 0, LastRefill: time.Now(), Tokens: 22},
+			l:            &RateLimiter{capacity: 1, refillRate: 0, lastRefill: time.Now(), tokens: 22},
 			iters_expect: []bool{true, false},
 		},
 		{
 			name:         "ok",
-			l:            &Limiter{Capacity: 2, RefillRate: 0, LastRefill: time.Now(), Tokens: 2},
+			l:            &RateLimiter{capacity: 2, refillRate: 0, lastRefill: time.Now(), tokens: 2},
 			iters_expect: []bool{true, true},
 		},
 		{
 			name:         "ok refill",
-			l:            &Limiter{Capacity: 2, RefillRate: 100, LastRefill: time.Now(), Tokens: 1},
+			l:            &RateLimiter{capacity: 2, refillRate: 100, lastRefill: time.Now(), tokens: 1},
 			iters_expect: []bool{true, true},
 			timeout:      10 * time.Millisecond,
 		},

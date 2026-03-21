@@ -31,13 +31,14 @@ const (
 )
 
 type App struct {
-	Host        string        `json:"host" yaml:"host"`
-	Port        int           `json:"port" yaml:"port"`
-	Timeout     time.Duration `json:"timeout" yaml:"timeout"`
-	RateLimiter RateLimiter   `json:"rate_limiter" yaml:"rate_limiter"`
-	SizeLimit   int           `json:"size_limit" yaml:"size_limit"`
-	Security    Security      `json:"security" yaml:"security"`
-	Storage     string        `json:"storage" yaml:"storage"`
+	Host             string        `json:"host" yaml:"host"`
+	Port             int           `json:"port" yaml:"port"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
+	RateLimiter      RateLimiter   `json:"rate_limiter" yaml:"rate_limiter"`
+	ConcurrencyLimit int           `json:"concurrency_limit" yaml:"concurrency_limit"`
+	SizeLimit        int           `json:"size_limit" yaml:"size_limit"`
+	Security         Security      `json:"security" yaml:"security"`
+	Storage          string        `json:"storage" yaml:"storage"`
 }
 
 type Log struct {
@@ -162,7 +163,7 @@ func applyEnv(cfg *Config) error {
 	if sAppPort != "" {
 		port, err := strconv.Atoi(sAppPort)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_APP_PORT=%q: %w", sAppPort, err)
 		}
 		cfg.App.Port = port
 	}
@@ -176,7 +177,7 @@ func applyEnv(cfg *Config) error {
 	if sSizeLimit != "" {
 		sizeLimit, err := strconv.Atoi(sSizeLimit)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_SIZE_LIMIT=%q: %w", sizeLimit, err)
 		}
 		cfg.App.SizeLimit = sizeLimit
 	}
@@ -185,7 +186,7 @@ func applyEnv(cfg *Config) error {
 	if sTimeout != "" {
 		timeout, err := time.ParseDuration(sTimeout)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_TIMEOUT=%q: %w", sTimeout, err)
 		}
 		cfg.App.Timeout = timeout
 	}
@@ -194,7 +195,7 @@ func applyEnv(cfg *Config) error {
 	if sCapacity != "" {
 		capacity, err := strconv.Atoi(sCapacity)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_CAPACITY=%q: %w", sCapacity, err)
 		}
 		cfg.App.RateLimiter.Capacity = capacity
 	}
@@ -203,9 +204,18 @@ func applyEnv(cfg *Config) error {
 	if sRefillRate != "" {
 		refillRate, err := strconv.Atoi(sRefillRate)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_REFILL_RATE=%q: %w", sRefillRate, err)
 		}
 		cfg.App.RateLimiter.RefillRate = refillRate
+	}
+
+	sConcurrencyLimit := os.Getenv("FILE_STORAGE_CONCURRENCY_LIMIT")
+	if sConcurrencyLimit != "" {
+		concurrencyLimit, err := strconv.Atoi(sConcurrencyLimit)
+		if err != nil {
+			return fmt.Errorf("invalid FILE_STORAGE_CONCURRENCY_LIMIT=%q: %w", sConcurrencyLimit, err)
+		}
+		cfg.App.ConcurrencyLimit = concurrencyLimit
 	}
 
 	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
@@ -237,7 +247,7 @@ func applyEnv(cfg *Config) error {
 	if sImageMaxDimension != "" {
 		maxDim, err := strconv.Atoi(sImageMaxDimension)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_IMAGE_MAX_DIMENSION=%q: %w", sImageMaxDimension, err)
 		}
 		cfg.Image.MaxDimension = maxDim
 	}
@@ -256,7 +266,7 @@ func applyEnv(cfg *Config) error {
 	if sFsLockLifetime != "" {
 		lifetime, err := time.ParseDuration(sFsLockLifetime)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid FILE_STORAGE_FS_LOCK_LIFETIME=%q: %w", sFsLockLifetime, err)
 		}
 		cfg.Storage.FileSystem.LockLifetime = lifetime
 	}
@@ -275,7 +285,7 @@ func applyFlags(cfg *Config) error {
 		raw := fAppPort.Value.String()
 		port, err := strconv.Atoi(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag port=%q: %w", raw, err)
 		}
 		cfg.App.Port = port
 	}
@@ -290,7 +300,7 @@ func applyFlags(cfg *Config) error {
 		raw := fSizeLimit.Value.String()
 		sizeLimit, err := strconv.Atoi(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag sizelimit=%q: %w", raw, err)
 		}
 		cfg.App.SizeLimit = sizeLimit
 	}
@@ -300,7 +310,7 @@ func applyFlags(cfg *Config) error {
 		raw := fTimeout.Value.String()
 		timeout, err := time.ParseDuration(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag timeout=%q: %w", raw, err)
 		}
 		cfg.App.Timeout = timeout
 	}
@@ -310,7 +320,7 @@ func applyFlags(cfg *Config) error {
 		raw := fCapacity.Value.String()
 		capacity, err := strconv.Atoi(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag capacity=%q: %w", raw, err)
 		}
 		cfg.App.RateLimiter.Capacity = capacity
 	}
@@ -320,9 +330,19 @@ func applyFlags(cfg *Config) error {
 		raw := fRefillRate.Value.String()
 		refillRate, err := strconv.Atoi(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag refill_rate=%q: %w", raw, err)
 		}
 		cfg.App.RateLimiter.RefillRate = refillRate
+	}
+
+	fConcurrencyLimit := pflag.Lookup("concurrency_limit")
+	if fConcurrencyLimit != nil && fConcurrencyLimit.Changed {
+		raw := fConcurrencyLimit.Value.String()
+		concurrencyLimit, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("invalid flag concurrency_limit=%q: %w", raw, err)
+		}
+		cfg.App.ConcurrencyLimit = concurrencyLimit
 	}
 
 	fReadToken := pflag.Lookup("readtoken")
@@ -355,7 +375,7 @@ func applyFlags(cfg *Config) error {
 		raw := fImageMaxDimension.Value.String()
 		maxDim, err := strconv.Atoi(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag imageMaxDimension=%q: %w", raw, err)
 		}
 		cfg.Image.MaxDimension = maxDim
 	}
@@ -372,9 +392,10 @@ func applyFlags(cfg *Config) error {
 
 	Ffsstoragelocklifetime := pflag.Lookup("fsstoragelocklifetime")
 	if Ffsstoragelocklifetime != nil && Ffsstoragelocklifetime.Changed {
-		lifetime, err := time.ParseDuration(Ffsstoragelocklifetime.Value.String())
+		raw := Ffsstoragelocklifetime.Value.String()
+		lifetime, err := time.ParseDuration(raw)
 		if err != nil {
-			return err
+			return fmt.Errorf("invalid flag fsstoragelocklifetime=%q: %w", raw, err)
 		}
 		cfg.Storage.FileSystem.LockLifetime = lifetime
 	}

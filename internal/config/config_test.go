@@ -57,6 +57,12 @@ func TestNewConfig(t *testing.T) {
 	}
 	defer os.Unsetenv("FILE_STORAGE_RATE_LIMITER_CAPACITY")
 
+	err = os.Setenv("FILE_STORAGE_CONCURRENCY_LIMIT", "10")
+	if err != nil {
+		t.Fatalf("set FILE_STORAGE_CONCURRENCY_LIMIT error: %s", err)
+	}
+	defer os.Unsetenv("FILE_STORAGE_CONCURRENCY_LIMIT")
+
 	pflag.CommandLine = pflag.NewFlagSet("test_nc", pflag.ExitOnError)
 	pflag.String("loglevel", "info", "log level")
 	pflag.String("logtype", "json", "log type")
@@ -100,6 +106,9 @@ func TestNewConfig(t *testing.T) {
 	}
 	if config.App.RateLimiter.RefillRate != 100 {
 		t.Errorf("expected rate limiter refill rate 9999 got %d", config.App.RateLimiter.RefillRate)
+	}
+	if config.App.ConcurrencyLimit != 10 {
+		t.Errorf("expected concurrency limit 10 got %d", config.App.ConcurrencyLimit)
 	}
 }
 

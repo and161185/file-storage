@@ -20,30 +20,27 @@ import (
 )
 
 type Server struct {
-	Service    *files.Service
-	host       string
-	port       int
-	sizelimit  int
-	timeout    time.Duration
-	httpServer *http.Server
-	Log        *slog.Logger
-	Limiter    *limiter.Limiter
+	Service            *files.Service
+	host               string
+	port               int
+	sizelimit          int
+	timeout            time.Duration
+	httpServer         *http.Server
+	Log                *slog.Logger
+	RateLimiter        *limiter.RateLimiter
+	concurrencyLimiter *limiter.ConcurrencyLimiter
 }
 
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
 	return &Server{
-		host:      config.Host,
-		port:      config.Port,
-		sizelimit: config.SizeLimit,
-		timeout:   config.Timeout,
-		Service:   svc,
-		Log:       log,
-		Limiter: &limiter.Limiter{
-			Capacity:   float64(config.RateLimiter.Capacity),
-			RefillRate: float64(config.RateLimiter.RefillRate),
-			LastRefill: time.Now(),
-			Tokens:     float64(config.RateLimiter.Capacity),
-		},
+		host:               config.Host,
+		port:               config.Port,
+		sizelimit:          config.SizeLimit,
+		timeout:            config.Timeout,
+		Service:            svc,
+		Log:                log,
+		RateLimiter:        limiter.NewRateLimiter(&config.RateLimiter),
+		concurrencyLimiter: limiter.NewConcurrencyLimiter(config.ConcurrencyLimit),
 	}
 }
 
@@ -56,7 +53,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.Metrics)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RateLimiter(s.Limiter))
+		r.Use(middleware.RateLimiter(s.RateLimiter))
 		r.Use(middleware.Timeout(s.timeout))
 		r.Use(middleware.SizeLimit(int64(s.sizelimit)))
 		r.Use(middleware.Authorization(authCfg))

@@ -20,6 +20,7 @@ func logConfig(log *slog.Logger, cfg *config.Config) {
 		"timeout", cfg.App.Timeout,
 		"capacity", cfg.App.RateLimiter.Capacity,
 		"refill_rate", cfg.App.RateLimiter.RefillRate,
+		"concurrency_limit", cfg.App.ConcurrencyLimit,
 		"image_ext", cfg.Image.Ext,
 		"image_max_dimension", cfg.Image.MaxDimension,
 		"storage", cfg.App.Storage,
