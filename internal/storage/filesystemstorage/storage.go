@@ -25,7 +25,7 @@ type FileSystemStorage struct {
 }
 
 func New(cfg *config.FileSystem) *FileSystemStorage {
-	return &FileSystemStorage{path: cfg.Path, lockLifetime: cfg.LockLifetime}
+	return &FileSystemStorage{path: cfg.Path}
 }
 
 func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {

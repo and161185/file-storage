@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	"time"
 )
 
 func TestUpsert(t *testing.T) {
@@ -58,7 +57,7 @@ func TestUpsert(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := config.FileSystem{Path: tt.path, LockLifetime: 1 * time.Second}
+			cfg := config.FileSystem{Path: tt.path}
 			f := New(&cfg)
 			id, err := f.Upsert(ctx, tt.fd)
 
@@ -98,7 +97,7 @@ func TestDelete(t *testing.T) {
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, log)
 
 	path := t.TempDir()
-	cfg := config.FileSystem{Path: path, LockLifetime: 1 * time.Second}
+	cfg := config.FileSystem{Path: path}
 	f := New(&cfg)
 
 	id := "123456789012345678901234567890123456"
@@ -173,7 +172,7 @@ func TestInfo(t *testing.T) {
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, log)
 
 	path := t.TempDir()
-	cfg := config.FileSystem{Path: path, LockLifetime: 1 * time.Second}
+	cfg := config.FileSystem{Path: path}
 	f := New(&cfg)
 
 	id := "123456789012345678901234567890123456"
@@ -229,7 +228,7 @@ func TestContent(t *testing.T) {
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, log)
 
 	path := t.TempDir()
-	cfg := config.FileSystem{Path: path, LockLifetime: 1 * time.Second}
+	cfg := config.FileSystem{Path: path}
 	f := New(&cfg)
 
 	id := "123456789012345678901234567890123456"

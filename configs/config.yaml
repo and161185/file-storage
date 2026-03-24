@@ -1,10 +1,12 @@
 app:
   host: "0.0.0.0"
   port: 8888
+  timeout: "5s"
   rate_limiter:
     capacity: 500
     refill_rate: 300
   concurrency_limit: 30
+  size_limit: 10485760
   security:
     read_token: "123"
     write_token: "321"
@@ -18,4 +20,3 @@ image:
 storage:
   filesystem:
     path: "./data"
-    lock_lifetime: "5s"

@@ -39,7 +39,6 @@ func main() {
 	pflag.Int("imageMaxDimension", 0, "max stored image dimension")
 	pflag.String("storage", "", "storage")
 	pflag.String("fsstoragepath", "", "file system storage path")
-	pflag.Duration("fsstoragelocklifetime", 5*time.Second, "file system lock lifetime")
 	pflag.Parse()
 
 	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")

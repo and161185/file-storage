@@ -98,9 +98,6 @@ func TestNewConfig(t *testing.T) {
 	if config.App.Storage != StorageFileSystem {
 		t.Errorf("expected storage %s got %s", StorageFileSystem, config.App.Storage)
 	}
-	if config.Storage.FileSystem.LockLifetime != 1*time.Second {
-		t.Errorf("expected storage lock lifetime %v got %v", 1*time.Second, config.Storage.FileSystem.LockLifetime)
-	}
 	if config.App.RateLimiter.Capacity != 9999 {
 		t.Errorf("expected rate limiter capacity 9999 got %d", config.App.RateLimiter.Capacity)
 	}
@@ -409,7 +406,7 @@ func TestValidate(t *testing.T) {
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image:   Image{Ext: "jpeg", MaxDimension: 2000},
-				Storage: Storage{FileSystem: FileSystem{LockLifetime: 5 * time.Second}},
+				Storage: Storage{FileSystem: FileSystem{}},
 			},
 			want: errs.ErrConfigInvalidStorage,
 		},
@@ -438,7 +435,7 @@ func TestValidate(t *testing.T) {
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image:   Image{Ext: "jpeg", MaxDimension: 2000},
-				Storage: Storage{FileSystem: FileSystem{LockLifetime: 5 * time.Second, Path: "some path"}},
+				Storage: Storage{FileSystem: FileSystem{Path: "some path"}},
 			},
 			want: nil,
 		},

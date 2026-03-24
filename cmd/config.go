@@ -25,6 +25,5 @@ func logConfig(log *slog.Logger, cfg *config.Config) {
 		"image_max_dimension", cfg.Image.MaxDimension,
 		"storage", cfg.App.Storage,
 		"file_system_storage_path", cfg.Storage.FileSystem.Path,
-		"file_system_lock_lifetime", cfg.Storage.FileSystem.LockLifetime,
 	)
 }

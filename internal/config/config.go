@@ -62,8 +62,7 @@ type Image struct {
 }
 
 type FileSystem struct {
-	Path         string        `json:"path" yaml:"path"`
-	LockLifetime time.Duration `json:"lock_lifetime" yaml:"lock_lifetime"`
+	Path string `json:"path" yaml:"path"`
 }
 
 type Storage struct {
@@ -262,15 +261,6 @@ func applyEnv(cfg *Config) error {
 		cfg.Storage.FileSystem.Path = sFsPath
 	}
 
-	sFsLockLifetime := os.Getenv("FILE_STORAGE_FS_LOCK_LIFETIME")
-	if sFsLockLifetime != "" {
-		lifetime, err := time.ParseDuration(sFsLockLifetime)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_FS_LOCK_LIFETIME=%q: %w", sFsLockLifetime, err)
-		}
-		cfg.Storage.FileSystem.LockLifetime = lifetime
-	}
-
 	return nil
 }
 
@@ -390,16 +380,6 @@ func applyFlags(cfg *Config) error {
 		cfg.Storage.FileSystem.Path = fFsstoragepath.Value.String()
 	}
 
-	Ffsstoragelocklifetime := pflag.Lookup("fsstoragelocklifetime")
-	if Ffsstoragelocklifetime != nil && Ffsstoragelocklifetime.Changed {
-		raw := Ffsstoragelocklifetime.Value.String()
-		lifetime, err := time.ParseDuration(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag fsstoragelocklifetime=%q: %w", raw, err)
-		}
-		cfg.Storage.FileSystem.LockLifetime = lifetime
-	}
-
 	return nil
 }
 
@@ -458,9 +438,6 @@ func validate(cfg *Config) error {
 	if cfg.App.Storage == StorageFileSystem {
 		if cfg.Storage.FileSystem.Path == "" {
 			return fmt.Errorf("%w: filesystem.path is required", errs.ErrConfigInvalidStorage)
-		}
-		if cfg.Storage.FileSystem.LockLifetime == 0 {
-			return fmt.Errorf("%w: filesystem.locklifetime is required", errs.ErrConfigInvalidStorage)
 		}
 	}
 
