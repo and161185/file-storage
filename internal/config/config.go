@@ -4,6 +4,7 @@ import (
 	"file-storage/internal/errs"
 	"file-storage/internal/imgproc"
 	"fmt"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -39,12 +40,16 @@ type App struct {
 }
 
 type Server struct {
-	Host string `json:"host" yaml:"host"`
-	Port int    `json:"port" yaml:"port"`
+	Host           string `json:"host" yaml:"host"`
+	Port           int    `json:"port" yaml:"port"`
+	MaxHeaderBytes int    `json:"max_header_bytes" yaml:"max_header_bytes"`
 }
 
 type Timeouts struct {
-	HandlerTimeout time.Duration `json:"handler_timeout" yaml:"handler_timeout"`
+	HandlerTimeout    time.Duration `json:"handler_timeout" yaml:"handler_timeout"`
+	ReadHeaderTimeout time.Duration `json:"read_header_timeout" yaml:"read_header_timeout"`
+	WriteTimeout      time.Duration `json:"write_timeout" yaml:"write_timeout"`
+	IdleTimeout       time.Duration `json:"idle_timeout" yaml:"idle_timeout"`
 }
 
 type Limits struct {
@@ -61,6 +66,13 @@ type Log struct {
 type Security struct {
 	ReadToken  string `json:"read_token" yaml:"read_token"`
 	WriteToken string `json:"write_token" yaml:"write_token"`
+}
+
+func (s *Security) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("read_token", "***"),
+		slog.String("write_token", "***"),
+	)
 }
 
 type RateLimiter struct {
@@ -126,11 +138,15 @@ func defaults() Config {
 		},
 		App: App{
 			Server: Server{
-				Host: "127.0.0.1",
-				Port: 8080,
+				Host:           "127.0.0.1",
+				Port:           8080,
+				MaxHeaderBytes: 65536,
 			},
 			Timeouts: Timeouts{
-				HandlerTimeout: 5 * time.Second,
+				HandlerTimeout:    5 * time.Second,
+				ReadHeaderTimeout: 1 * time.Second,
+				WriteTimeout:      5 * time.Second,
+				IdleTimeout:       10 * time.Second,
 			},
 			Limits: Limits{
 				SizeLimit: defaultSizeLimit,
@@ -176,13 +192,12 @@ func applyConfigFile(cfg *Config, configPath string) error {
 
 func applyEnv(cfg *Config) error {
 
-	sAppPort := os.Getenv("FILE_STORAGE_APP_PORT")
-	if sAppPort != "" {
-		port, err := strconv.Atoi(sAppPort)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_APP_PORT=%q: %w", sAppPort, err)
-		}
-		cfg.App.Server.Port = port
+	v, ok, err := readIntEnv("FILE_STORAGE_APP_PORT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Server.Port = v
 	}
 
 	sAppHost := os.Getenv("FILE_STORAGE_APP_HOST")
@@ -190,49 +205,76 @@ func applyEnv(cfg *Config) error {
 		cfg.App.Server.Host = sAppHost
 	}
 
-	sTimeout := os.Getenv("FILE_STORAGE_TIMEOUT")
-	if sTimeout != "" {
-		timeout, err := time.ParseDuration(sTimeout)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_TIMEOUT=%q: %w", sTimeout, err)
-		}
-		cfg.App.Timeouts.HandlerTimeout = timeout
+	v, ok, err = readIntEnv("FILE_STORAGE_MAX_HEADER_BYTES")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Server.MaxHeaderBytes = v
 	}
 
-	sSizeLimit := os.Getenv("FILE_STORAGE_SIZE_LIMIT")
-	if sSizeLimit != "" {
-		sizeLimit, err := strconv.Atoi(sSizeLimit)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_SIZE_LIMIT=%q: %w", sizeLimit, err)
-		}
-		cfg.App.Limits.SizeLimit = sizeLimit
+	d, ok, err := readDurationEnv("FILE_STORAGE_HANDLER_TIMEOUT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.HandlerTimeout = d
 	}
 
-	sCapacity := os.Getenv("FILE_STORAGE_RATE_LIMITER_CAPACITY")
-	if sCapacity != "" {
-		capacity, err := strconv.Atoi(sCapacity)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_CAPACITY=%q: %w", sCapacity, err)
-		}
-		cfg.App.Limits.RateLimiter.Capacity = capacity
+	d, ok, err = readDurationEnv("FILE_STORAGE_READ_HEADER_TIMEOUT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.ReadHeaderTimeout = d
 	}
 
-	sRefillRate := os.Getenv("FILE_STORAGE_RATE_LIMITER_REFILL_RATE")
-	if sRefillRate != "" {
-		refillRate, err := strconv.Atoi(sRefillRate)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_REFILL_RATE=%q: %w", sRefillRate, err)
-		}
-		cfg.App.Limits.RateLimiter.RefillRate = refillRate
+	d, ok, err = readDurationEnv("FILE_STORAGE_WRITE_TIMEOUT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.WriteTimeout = d
 	}
 
-	sConcurrencyLimit := os.Getenv("FILE_STORAGE_CONCURRENCY_LIMIT")
-	if sConcurrencyLimit != "" {
-		concurrencyLimit, err := strconv.Atoi(sConcurrencyLimit)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_CONCURRENCY_LIMIT=%q: %w", sConcurrencyLimit, err)
-		}
-		cfg.App.Limits.ConcurrencyLimit = concurrencyLimit
+	d, ok, err = readDurationEnv("FILE_STORAGE_IDLE_TIMEOUT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.IdleTimeout = d
+	}
+
+	v, ok, err = readIntEnv("FILE_STORAGE_SIZE_LIMIT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.SizeLimit = v
+	}
+
+	v, ok, err = readIntEnv("FILE_STORAGE_RATE_LIMITER_CAPACITY")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.RateLimiter.Capacity = v
+	}
+
+	v, ok, err = readIntEnv("FILE_STORAGE_RATE_LIMITER_REFILL_RATE")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.RateLimiter.RefillRate = v
+	}
+
+	v, ok, err = readIntEnv("FILE_STORAGE_CONCURRENCY_LIMIT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.ConcurrencyLimit = v
 	}
 
 	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
@@ -260,13 +302,12 @@ func applyEnv(cfg *Config) error {
 		cfg.Image.Ext = sImageExt
 	}
 
-	sImageMaxDimension := os.Getenv("FILE_STORAGE_IMAGE_MAX_DIMENSION")
-	if sImageMaxDimension != "" {
-		maxDim, err := strconv.Atoi(sImageMaxDimension)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_IMAGE_MAX_DIMENSION=%q: %w", sImageMaxDimension, err)
-		}
-		cfg.Image.MaxDimension = maxDim
+	v, ok, err = readIntEnv("FILE_STORAGE_IMAGE_MAX_DIMENSION")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Image.MaxDimension = v
 	}
 
 	sStorage := os.Getenv("FILE_STORAGE_STORAGE")
@@ -282,20 +323,42 @@ func applyEnv(cfg *Config) error {
 	return nil
 }
 
+func readIntEnv(name string) (int, bool, error) {
+	sValue := os.Getenv(name)
+	if sValue != "" {
+		v, err := strconv.Atoi(sValue)
+		if err != nil {
+			return 0, false, fmt.Errorf("invalid %s=%q: %w", name, sValue, err)
+		}
+		return v, true, nil
+	}
+	return 0, false, nil
+}
+
+func readDurationEnv(name string) (time.Duration, bool, error) {
+	sValue := os.Getenv(name)
+	if sValue != "" {
+		v, err := time.ParseDuration(sValue)
+		if err != nil {
+			return 0, false, fmt.Errorf("invalid %s=%q: %w", name, sValue, err)
+		}
+		return v, true, nil
+	}
+	return 0, false, nil
+}
+
 func applyFlags(cfg *Config) error {
 
 	if !pflag.Parsed() {
 		return errs.ErrConfigFlagsNotParsed
 	}
 
-	fAppPort := pflag.Lookup("port")
-	if fAppPort != nil && fAppPort.Changed {
-		raw := fAppPort.Value.String()
-		port, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag port=%q: %w", raw, err)
-		}
-		cfg.App.Server.Port = port
+	v, ok, err := readIntFlag("port")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Server.Port = v
 	}
 
 	fHost := pflag.Lookup("host")
@@ -303,89 +366,109 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Server.Host = fHost.Value.String()
 	}
 
-	fTimeout := pflag.Lookup("timeout")
-	if fTimeout != nil && fTimeout.Changed {
-		raw := fTimeout.Value.String()
-		timeout, err := time.ParseDuration(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag timeout=%q: %w", raw, err)
-		}
-		cfg.App.Timeouts.HandlerTimeout = timeout
+	v, ok, err = readIntFlag("max-header-bytes")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Server.MaxHeaderBytes = v
 	}
 
-	fSizeLimit := pflag.Lookup("sizelimit")
-	if fSizeLimit != nil && fSizeLimit.Changed {
-		raw := fSizeLimit.Value.String()
-		sizeLimit, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag sizelimit=%q: %w", raw, err)
-		}
-		cfg.App.Limits.SizeLimit = sizeLimit
+	d, ok, err := readDurationFlag("handler-timeout")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.HandlerTimeout = d
 	}
 
-	fCapacity := pflag.Lookup("capacity")
-	if fCapacity != nil && fCapacity.Changed {
-		raw := fCapacity.Value.String()
-		capacity, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag capacity=%q: %w", raw, err)
-		}
-		cfg.App.Limits.RateLimiter.Capacity = capacity
+	d, ok, err = readDurationFlag("read-header-timeout")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.ReadHeaderTimeout = d
 	}
 
-	fRefillRate := pflag.Lookup("refill_rate")
-	if fRefillRate != nil && fRefillRate.Changed {
-		raw := fRefillRate.Value.String()
-		refillRate, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag refill_rate=%q: %w", raw, err)
-		}
-		cfg.App.Limits.RateLimiter.RefillRate = refillRate
+	d, ok, err = readDurationFlag("write-timeout")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.WriteTimeout = d
 	}
 
-	fConcurrencyLimit := pflag.Lookup("concurrency_limit")
-	if fConcurrencyLimit != nil && fConcurrencyLimit.Changed {
-		raw := fConcurrencyLimit.Value.String()
-		concurrencyLimit, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag concurrency_limit=%q: %w", raw, err)
-		}
-		cfg.App.Limits.ConcurrencyLimit = concurrencyLimit
+	d, ok, err = readDurationFlag("idle-timeout")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Timeouts.IdleTimeout = d
 	}
 
-	fReadToken := pflag.Lookup("readtoken")
+	v, ok, err = readIntFlag("size-limit")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.SizeLimit = v
+	}
+
+	v, ok, err = readIntFlag("rate-capacity")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.RateLimiter.Capacity = v
+	}
+
+	v, ok, err = readIntFlag("rate-refill")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.RateLimiter.RefillRate = v
+	}
+
+	v, ok, err = readIntFlag("concurrency-limit")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.App.Limits.ConcurrencyLimit = v
+	}
+
+	fReadToken := pflag.Lookup("read-token")
 	if fReadToken != nil && fReadToken.Changed {
 		cfg.App.Security.ReadToken = fReadToken.Value.String()
 	}
 
-	fWriteToken := pflag.Lookup("writetoken")
+	fWriteToken := pflag.Lookup("write-token")
 	if fWriteToken != nil && fWriteToken.Changed {
 		cfg.App.Security.WriteToken = fWriteToken.Value.String()
 	}
 
-	fLogLevel := pflag.Lookup("loglevel")
+	fLogLevel := pflag.Lookup("log-level")
 	if fLogLevel != nil && fLogLevel.Changed {
 		cfg.Log.Level = fLogLevel.Value.String()
 	}
 
-	fLogType := pflag.Lookup("logtype")
+	fLogType := pflag.Lookup("log-type")
 	if fLogType != nil && fLogType.Changed {
 		cfg.Log.Type = fLogType.Value.String()
 	}
 
-	fImageExt := pflag.Lookup("imageext")
+	fImageExt := pflag.Lookup("image-ext")
 	if fImageExt != nil && fImageExt.Changed {
 		cfg.Image.Ext = fImageExt.Value.String()
 	}
 
-	fImageMaxDimension := pflag.Lookup("imageMaxDimension")
-	if fImageMaxDimension != nil && fImageMaxDimension.Changed {
-		raw := fImageMaxDimension.Value.String()
-		maxDim, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag imageMaxDimension=%q: %w", raw, err)
-		}
-		cfg.Image.MaxDimension = maxDim
+	v, ok, err = readIntFlag("image-max-dimension")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Image.MaxDimension = v
 	}
 
 	fStorage := pflag.Lookup("storage")
@@ -393,12 +476,38 @@ func applyFlags(cfg *Config) error {
 		cfg.App.Storage = fStorage.Value.String()
 	}
 
-	fFsstoragepath := pflag.Lookup("fsstoragepath")
+	fFsstoragepath := pflag.Lookup("fs-storage-path")
 	if fFsstoragepath != nil && fFsstoragepath.Changed {
 		cfg.Storage.FileSystem.Path = fFsstoragepath.Value.String()
 	}
 
 	return nil
+}
+
+func readIntFlag(name string) (int, bool, error) {
+	fValue := pflag.Lookup(name)
+	if fValue != nil && fValue.Changed {
+		raw := fValue.Value.String()
+		v, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, false, fmt.Errorf("invalid flag %s=%q: %w", name, raw, err)
+		}
+		return v, true, nil
+	}
+	return 0, false, nil
+}
+
+func readDurationFlag(name string) (time.Duration, bool, error) {
+	fValue := pflag.Lookup(name)
+	if fValue != nil && fValue.Changed {
+		raw := fValue.Value.String()
+		v, err := time.ParseDuration(raw)
+		if err != nil {
+			return 0, false, fmt.Errorf("invalid flag %s=%q: %w", name, raw, err)
+		}
+		return v, true, nil
+	}
+	return 0, false, nil
 }
 
 func normalize(cfg *Config) {
@@ -415,8 +524,21 @@ func validate(cfg *Config) error {
 		return errs.ErrConfigPortOutOfRange
 	}
 
+	if cfg.App.Server.MaxHeaderBytes < 0 || cfg.App.Server.MaxHeaderBytes > 1024*1024 {
+		return errs.ErrConfigMaxHeaderBytesOutOfRange
+	}
+
 	if cfg.App.Timeouts.HandlerTimeout <= 0 {
-		return errs.ErrConfigInvalidTimeout
+		return fmt.Errorf("handler timeout: %w", errs.ErrConfigInvalidTimeout)
+	}
+	if cfg.App.Timeouts.ReadHeaderTimeout <= 0 {
+		return fmt.Errorf("read header timeout: %w", errs.ErrConfigInvalidTimeout)
+	}
+	if cfg.App.Timeouts.WriteTimeout <= 0 {
+		return fmt.Errorf("write timeout: %w", errs.ErrConfigInvalidTimeout)
+	}
+	if cfg.App.Timeouts.IdleTimeout <= 0 {
+		return fmt.Errorf("idle timeout: %w", errs.ErrConfigInvalidTimeout)
 	}
 
 	capacityEnabled := cfg.App.Limits.RateLimiter.Capacity > 0

@@ -20,13 +20,14 @@ import (
 )
 
 type Server struct {
-	Service    *files.Service
-	host       string
-	port       int
-	limits     Limits
-	timeouts   Timeouts
-	httpServer *http.Server
-	Log        *slog.Logger
+	service        *files.Service
+	host           string
+	port           int
+	maxHeaderBytes int
+	limits         Limits
+	timeouts       Timeouts
+	httpServer     *http.Server
+	Log            *slog.Logger
 }
 
 type Limits struct {
@@ -36,22 +37,26 @@ type Limits struct {
 }
 
 type Timeouts struct {
-	handler_timeout time.Duration
+	handlerTimeout    time.Duration
+	readHeaderTimeout time.Duration
+	writeTimeout      time.Duration
+	idleTimeout       time.Duration
 }
 
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
 	return &Server{
-		host: config.Server.Host,
-		port: config.Server.Port,
+		host:           config.Server.Host,
+		port:           config.Server.Port,
+		maxHeaderBytes: config.Server.MaxHeaderBytes,
 		limits: Limits{
 			sizelimit:          config.Limits.SizeLimit,
 			RateLimiter:        limiter.NewRateLimiter(&config.Limits.RateLimiter),
 			concurrencyLimiter: limiter.NewConcurrencyLimiter(config.Limits.ConcurrencyLimit),
 		},
 		timeouts: Timeouts{
-			handler_timeout: config.Timeouts.HandlerTimeout,
+			handlerTimeout: config.Timeouts.HandlerTimeout,
 		},
-		Service: svc,
+		service: svc,
 		Log:     log,
 	}
 }
@@ -66,25 +71,29 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.RateLimiter(s.limits.RateLimiter))
-		r.Use(middleware.Timeout(s.timeouts.handler_timeout))
+		r.Use(middleware.Timeout(s.timeouts.handlerTimeout))
 		r.Use(middleware.SizeLimit(int64(s.limits.sizelimit)))
 		r.Use(middleware.Authorization(authCfg))
 
-		r.Get("/files/{id}/info", handlers.InfoHandler(s.Service))
-		r.Get("/files/{id}/content", handlers.ContentHandler(s.Service))
-		r.Post("/files/upload", handlers.UploadHandler(s.Service))
-		r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.Service))
+		r.Get("/files/{id}/info", handlers.InfoHandler(s.service))
+		r.Get("/files/{id}/content", handlers.ContentHandler(s.service))
+		r.Post("/files/upload", handlers.UploadHandler(s.service))
+		r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.service))
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Timeout(s.timeouts.handler_timeout))
+		r.Use(middleware.Timeout(s.timeouts.handlerTimeout))
 		r.Get("/files/metrics", promhttp.Handler().ServeHTTP)
 	})
 
 	s.httpServer = &http.Server{
-		Addr:        ":" + strconv.Itoa(s.port),
-		BaseContext: func(l net.Listener) context.Context { return ctx },
-		Handler:     r,
+		Addr:              ":" + strconv.Itoa(s.port),
+		BaseContext:       func(l net.Listener) context.Context { return ctx },
+		Handler:           r,
+		MaxHeaderBytes:    s.maxHeaderBytes,
+		WriteTimeout:      s.timeouts.writeTimeout,
+		ReadHeaderTimeout: s.timeouts.readHeaderTimeout,
+		IdleTimeout:       s.timeouts.idleTimeout,
 	}
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(s.host, strconv.Itoa(s.port)))

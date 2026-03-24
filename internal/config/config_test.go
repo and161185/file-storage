@@ -64,21 +64,19 @@ func TestNewConfig(t *testing.T) {
 	defer os.Unsetenv("FILE_STORAGE_CONCURRENCY_LIMIT")
 
 	pflag.CommandLine = pflag.NewFlagSet("test_nc", pflag.ExitOnError)
-	pflag.String("loglevel", "info", "log level")
-	pflag.String("logtype", "json", "log type")
+	pflag.String("log-level", "info", "log level")
+	pflag.String("log-type", "json", "log type")
 	pflag.Int("port", 0, "application port")
-	pflag.Int("refill_rate", 100, "refill rate")
-	pflag.String("readtoken", "123", "read token")
-	pflag.String("writetoken", "123", "write token")
-	pflag.String("imageext", "", "stored image format")
-	pflag.String("fsstoragepath", "", "file system storage path")
-	pflag.Duration("fsstoragelocklifetime", 0, "file system lock lifetime")
+	pflag.Int("rate-refill", 100, "refill rate")
+	pflag.String("read-token", "123", "read token")
+	pflag.String("write-token", "123", "write token")
+	pflag.String("image-ext", "", "stored image format")
+	pflag.String("fs-storage-path", "", "file system storage path")
 
 	pflag.Set("port", "666")
-	pflag.Set("refill_rate", "100")
-	pflag.Set("imageext", "jpeg")
-	pflag.Set("fsstoragepath", "var/fs/data")
-	pflag.Set("fsstoragelocklifetime", "1s")
+	pflag.Set("rate-refill", "100")
+	pflag.Set("image-ext", "jpeg")
+	pflag.Set("fs-storage-path", "var/fs/data")
 	pflag.Parse()
 
 	config, err := NewConfig(path)
@@ -185,11 +183,17 @@ func TestApplyEnv(t *testing.T) {
 	}
 	defer os.Unsetenv("FILE_STORAGE_LOG_TYPE")
 
-	err = os.Setenv("FILE_STORAGE_TIMEOUT", "5s")
+	err = os.Setenv("FILE_STORAGE_MAX_HEADER_BYTES", "1")
 	if err != nil {
-		t.Fatalf("set FILE_STORAGE_TIMEOUT error: %s", err)
+		t.Fatalf("set FILE_STORAGE_MAX_HEADER_BYTES error: %s", err)
 	}
-	defer os.Unsetenv("FILE_STORAGE_TIMEOUT")
+	defer os.Unsetenv("FILE_STORAGE_MAX_HEADER_BYTES")
+
+	err = os.Setenv("FILE_STORAGE_HANDLER_TIMEOUT", "5s")
+	if err != nil {
+		t.Fatalf("set FILE_STORAGE_HANDLER_TIMEOUT error: %s", err)
+	}
+	defer os.Unsetenv("FILE_STORAGE_HANDLER_TIMEOUT")
 
 	err = applyEnv(&cfg)
 	if err != nil {
@@ -198,6 +202,9 @@ func TestApplyEnv(t *testing.T) {
 
 	if cfg.App.Server.Port != 5 {
 		t.Errorf("expect port 5 got %d", cfg.App.Server.Port)
+	}
+	if cfg.App.Server.MaxHeaderBytes != 1 {
+		t.Errorf("expect port 1 got %d", cfg.App.Server.Port)
 	}
 	if cfg.App.Timeouts.HandlerTimeout != 5*time.Second {
 		t.Errorf("expect timeout %v got %v", 5*time.Second, cfg.App.Timeouts.HandlerTimeout)
@@ -214,16 +221,16 @@ func TestApplyFlags(t *testing.T) {
 	cfg := Config{App: App{}, Log: Log{}}
 
 	pflag.CommandLine = pflag.NewFlagSet("test_af", pflag.ExitOnError)
-	pflag.String("loglevel", "info", "log level")
-	pflag.String("logtype", "json", "log type")
+	pflag.String("log-level", "info", "log level")
+	pflag.String("log-type", "json", "log type")
 	pflag.Int("port", 0, "application port")
-	pflag.Int("sizelimit", 0, "max file size")
+	pflag.Int("size-limit", 0, "max file size")
 
 	pflag.Set("config", "C:/config.txt")
-	pflag.Set("loglevel", LogLevelWarn)
-	pflag.Set("logtype", LogTypeText)
+	pflag.Set("log-level", LogLevelWarn)
+	pflag.Set("log-type", LogTypeText)
 	pflag.Set("port", "5")
-	pflag.Set("sizelimit", "1000")
+	pflag.Set("size-limit", "1000")
 
 	err := applyFlags(&cfg)
 	if err != errs.ErrConfigFlagsNotParsed {
@@ -252,6 +259,14 @@ func TestApplyFlags(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
+
+	timeouts := Timeouts{
+		HandlerTimeout:    5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
 	tests := []struct {
 		name string
 		cfg  Config
@@ -261,9 +276,7 @@ func TestValidate(t *testing.T) {
 			name: "host not set",
 			cfg: Config{
 				App: App{
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -297,9 +310,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: -2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -315,9 +326,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 65536,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -333,9 +342,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: "asd", Type: LogTypeJSON},
@@ -351,9 +358,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: "jjson"},
@@ -369,9 +374,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -387,9 +390,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "", WriteToken: ""}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -405,9 +406,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -422,9 +421,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"},
 					Limits: Limits{
@@ -437,6 +434,24 @@ func TestValidate(t *testing.T) {
 			want: errs.ErrConfigInvalidRateLimiter,
 		},
 		{
+			name: "invalid max header bytes",
+			cfg: Config{
+				App: App{
+					Server: Server{
+						Host:           "127.0.0.1",
+						Port:           2,
+						MaxHeaderBytes: 1024*1024 + 1,
+					},
+					Timeouts: timeouts,
+					Storage:  StorageInmemory,
+					Security: Security{ReadToken: "1", WriteToken: "2"},
+				},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimension: 2000},
+			},
+			want: errs.ErrConfigMaxHeaderBytesOutOfRange,
+		},
+		{
 			name: "invalid FS storage, path required",
 			cfg: Config{
 				App: App{
@@ -444,9 +459,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageFileSystem,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -463,9 +476,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -481,9 +492,7 @@ func TestValidate(t *testing.T) {
 						Host: "127.0.0.1",
 						Port: 2,
 					},
-					Timeouts: Timeouts{
-						HandlerTimeout: 5 * time.Second,
-					},
+					Timeouts: timeouts,
 					Storage:  StorageFileSystem,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},

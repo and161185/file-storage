@@ -5,6 +5,7 @@ import "errors"
 var ErrConfigFlagsNotParsed = errors.New("flags not parsed")
 var ErrConfigHostNotSet = errors.New("host not set")
 var ErrConfigPortOutOfRange = errors.New("config app port out of range")
+var ErrConfigMaxHeaderBytesOutOfRange = errors.New("config app max header bytes out of range")
 var ErrConfigInvalidTimeout = errors.New("invalid timeout")
 var ErrConfigInvalidRateLimiter = errors.New("invalid rate limiter")
 var ErrConfigWrongLogLevel = errors.New("invalid config log level. should be debug or info or warn or error")
