@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
+	"file-storage/internal/errs"
 	"file-storage/internal/logger"
 	"fmt"
 	"log/slog"
@@ -19,17 +20,17 @@ func InfoHandler(svc Service) http.HandlerFunc {
 		ctx := r.Context()
 
 		log := logger.FromContext(ctx)
-		log = logger.WithHandler(log, logger.HandlerDelete)
+		log = logger.WithHandler(log, logger.HandlerInfo)
 
 		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Error("failed to get Auth structure out of context")
+			err := fmt.Errorf("failed to get Auth structure out of context: %w", errs.ErrContextValueError)
+			handleTransportError(w, log, err)
 			return
 		}
 		if !auth.Read {
-			w.WriteHeader(http.StatusForbidden)
-			log.Warn("read access denied")
+			err := fmt.Errorf("read access denied: %w", errs.ErrAccessDenied)
+			handleTransportError(w, log, err)
 			return
 		}
 
@@ -37,7 +38,7 @@ func InfoHandler(svc Service) http.HandlerFunc {
 
 		err := validateID(ID)
 		if err != nil {
-			handleValidationError(w, log, err)
+			handleTransportError(w, log, err)
 			return
 		}
 

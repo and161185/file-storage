@@ -28,7 +28,7 @@ func ContentHandler(svc Service) http.HandlerFunc {
 
 		cr, err := parseContentRequest(r, ID)
 		if err != nil {
-			handleValidationError(w, log, err)
+			handleTransportError(w, log, err)
 			return
 		}
 

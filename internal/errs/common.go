@@ -4,8 +4,6 @@ import "errors"
 
 var ErrConcurrencyLimiterBelow0 = errors.New("concurrency limiter below 0")
 var ErrNotFound = errors.New("not found")
-var ErrWrongFormat = errors.New("format unsupported")
-var ErrTooBig = errors.New("data is too big")
 var ErrInvalidID = errors.New("invalid id")
 
 var ErrInvalidFileData = errors.New("invalid file data")

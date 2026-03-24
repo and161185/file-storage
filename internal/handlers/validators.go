@@ -6,7 +6,9 @@ import (
 	"errors"
 	"file-storage/internal/errs"
 	"file-storage/internal/handlers/httpdto"
+	"file-storage/internal/logger"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 )
@@ -83,7 +85,8 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 	switch {
 	case errors.Is(err, errs.ErrHashMismatch),
 		errors.Is(err, errs.ErrNoDataToUpload),
-		errors.Is(err, errs.ErrInvalidImage):
+		errors.Is(err, errs.ErrInvalidImage),
+		errors.Is(err, errs.ErrUnsupportedTypeInMetadata):
 		return http.StatusUnprocessableEntity, true
 
 	case errors.Is(err, errs.ErrNotSupportedImageType),
@@ -105,4 +108,40 @@ func mapErrorToHttpStatus(err error) (int, bool) {
 	default:
 		return http.StatusInternalServerError, false
 	}
+}
+
+func handleTransportError(w http.ResponseWriter, log *slog.Logger, err error) {
+
+	log.Warn("transport level error", slog.Any(logger.LogFieldError, err))
+
+	status, handledError := mapErrorToHttpStatus(err)
+	if !handledError {
+		log.Warn("unhandled transport error", slog.Any(logger.LogFieldError, err))
+	}
+
+	writeErrorResponse(w, err, status)
+
+}
+
+func handleBusinessError(w http.ResponseWriter, log *slog.Logger, err error) {
+
+	log.Error("business level error", slog.Any(logger.LogFieldError, err))
+
+	status, handledError := mapErrorToHttpStatus(err)
+	if !handledError {
+		log.Error("unhandled business error", slog.Any(logger.LogFieldError, err))
+	}
+
+	writeErrorResponse(w, err, status)
+
+}
+
+func writeErrorResponse(w http.ResponseWriter, err error, status int) {
+
+	if status >= 500 {
+		http.Error(w, http.StatusText(status), status)
+	} else {
+		http.Error(w, err.Error(), status)
+	}
+
 }

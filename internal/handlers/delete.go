@@ -3,7 +3,9 @@ package handlers
 import (
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
+	"file-storage/internal/errs"
 	"file-storage/internal/logger"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -21,13 +23,13 @@ func DeleteHandler(svc Service) http.HandlerFunc {
 
 		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Error("failed to get Auth structure out of context")
+			err := fmt.Errorf("failed to get Auth structure out of context: %w", errs.ErrContextValueError)
+			handleTransportError(w, log, err)
 			return
 		}
 		if !auth.Write {
-			w.WriteHeader(http.StatusForbidden)
-			log.Warn("write access denied")
+			err := fmt.Errorf("write access denied: %w", errs.ErrAccessDenied)
+			handleTransportError(w, log, err)
 			return
 		}
 
@@ -35,7 +37,7 @@ func DeleteHandler(svc Service) http.HandlerFunc {
 
 		err := validateID(ID)
 		if err != nil {
-			handleValidationError(w, log, err)
+			handleTransportError(w, log, err)
 			return
 		}
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"file-storage/internal/authorization"
 	"file-storage/internal/contextkeys"
+	"file-storage/internal/errs"
 	"file-storage/internal/filedata"
 	"file-storage/internal/handlers/httpdto"
 	"file-storage/internal/logger"
@@ -26,13 +27,13 @@ func UploadHandler(svc Service) http.HandlerFunc {
 
 		auth, ok := ctx.Value(contextkeys.ContextKeyAuth).(*authorization.Auth)
 		if !ok {
-			w.WriteHeader(http.StatusInternalServerError)
-			log.Error("failed to get Auth structure out of context")
+			err := fmt.Errorf("failed to get Auth structure out of context: %w", errs.ErrContextValueError)
+			handleTransportError(w, log, err)
 			return
 		}
 		if !auth.Write {
-			w.WriteHeader(http.StatusForbidden)
-			log.Warn("write access denied")
+			err := fmt.Errorf("write access denied: %w", errs.ErrAccessDenied)
+			handleTransportError(w, log, err)
 			return
 		}
 
@@ -50,7 +51,7 @@ func UploadHandler(svc Service) http.HandlerFunc {
 		ur.ID = strings.TrimSpace(ur.ID)
 		err = validateUploadRequest(&ur)
 		if err != nil {
-			handleValidationError(w, log, err)
+			handleTransportError(w, log, err)
 			return
 		}
 
@@ -91,40 +92,4 @@ func UploadHandler(svc Service) http.HandlerFunc {
 		}
 
 	}
-}
-
-func handleValidationError(w http.ResponseWriter, log *slog.Logger, err error) {
-
-	log.Warn("query validation failed", slog.Any(logger.LogFieldError, err))
-
-	status, handledError := mapErrorToHttpStatus(err)
-	if !handledError {
-		log.Warn("unhandled error", slog.Any(logger.LogFieldError, err))
-	}
-
-	writeErrorResponse(w, err, status)
-
-}
-
-func handleBusinessError(w http.ResponseWriter, log *slog.Logger, err error) {
-
-	log.Error("execution error", slog.Any(logger.LogFieldError, err))
-
-	status, handledError := mapErrorToHttpStatus(err)
-	if !handledError {
-		log.Error("unhandled internal error", slog.Any(logger.LogFieldError, err))
-	}
-
-	writeErrorResponse(w, err, status)
-
-}
-
-func writeErrorResponse(w http.ResponseWriter, err error, status int) {
-
-	if status >= 500 {
-		http.Error(w, http.StatusText(status), status)
-	} else {
-		http.Error(w, err.Error(), status)
-	}
-
 }
