@@ -20,27 +20,39 @@ import (
 )
 
 type Server struct {
-	Service            *files.Service
-	host               string
-	port               int
+	Service    *files.Service
+	host       string
+	port       int
+	limits     Limits
+	timeouts   Timeouts
+	httpServer *http.Server
+	Log        *slog.Logger
+}
+
+type Limits struct {
 	sizelimit          int
-	timeout            time.Duration
-	httpServer         *http.Server
-	Log                *slog.Logger
 	RateLimiter        *limiter.RateLimiter
 	concurrencyLimiter *limiter.ConcurrencyLimiter
 }
 
+type Timeouts struct {
+	handler_timeout time.Duration
+}
+
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
 	return &Server{
-		host:               config.Host,
-		port:               config.Port,
-		sizelimit:          config.SizeLimit,
-		timeout:            config.Timeout,
-		Service:            svc,
-		Log:                log,
-		RateLimiter:        limiter.NewRateLimiter(&config.RateLimiter),
-		concurrencyLimiter: limiter.NewConcurrencyLimiter(config.ConcurrencyLimit),
+		host: config.Server.Host,
+		port: config.Server.Port,
+		limits: Limits{
+			sizelimit:          config.Limits.SizeLimit,
+			RateLimiter:        limiter.NewRateLimiter(&config.Limits.RateLimiter),
+			concurrencyLimiter: limiter.NewConcurrencyLimiter(config.Limits.ConcurrencyLimit),
+		},
+		timeouts: Timeouts{
+			handler_timeout: config.Timeouts.HandlerTimeout,
+		},
+		Service: svc,
+		Log:     log,
 	}
 }
 
@@ -53,9 +65,9 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.Metrics)
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.RateLimiter(s.RateLimiter))
-		r.Use(middleware.Timeout(s.timeout))
-		r.Use(middleware.SizeLimit(int64(s.sizelimit)))
+		r.Use(middleware.RateLimiter(s.limits.RateLimiter))
+		r.Use(middleware.Timeout(s.timeouts.handler_timeout))
+		r.Use(middleware.SizeLimit(int64(s.limits.sizelimit)))
 		r.Use(middleware.Authorization(authCfg))
 
 		r.Get("/files/{id}/info", handlers.InfoHandler(s.Service))
@@ -65,13 +77,15 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	})
 
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.Timeout(s.timeout))
+		r.Use(middleware.Timeout(s.timeouts.handler_timeout))
 		r.Get("/files/metrics", promhttp.Handler().ServeHTTP)
 	})
 
-	s.httpServer = &http.Server{Addr: ":" + strconv.Itoa(s.port),
+	s.httpServer = &http.Server{
+		Addr:        ":" + strconv.Itoa(s.port),
 		BaseContext: func(l net.Listener) context.Context { return ctx },
-		Handler:     r}
+		Handler:     r,
+	}
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(s.host, strconv.Itoa(s.port)))
 	if err != nil {

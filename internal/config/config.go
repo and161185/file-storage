@@ -31,14 +31,26 @@ const (
 )
 
 type App struct {
-	Host             string        `json:"host" yaml:"host"`
-	Port             int           `json:"port" yaml:"port"`
-	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
-	RateLimiter      RateLimiter   `json:"rate_limiter" yaml:"rate_limiter"`
-	ConcurrencyLimit int           `json:"concurrency_limit" yaml:"concurrency_limit"`
-	SizeLimit        int           `json:"size_limit" yaml:"size_limit"`
-	Security         Security      `json:"security" yaml:"security"`
-	Storage          string        `json:"storage" yaml:"storage"`
+	Server   Server   `json:"server" yaml:"server"`
+	Timeouts Timeouts `json:"timeouts" yaml:"timeouts"`
+	Limits   Limits   `json:"limits" yaml:"limits"`
+	Security Security `json:"security" yaml:"security"`
+	Storage  string   `json:"storage" yaml:"storage"`
+}
+
+type Server struct {
+	Host string `json:"host" yaml:"host"`
+	Port int    `json:"port" yaml:"port"`
+}
+
+type Timeouts struct {
+	HandlerTimeout time.Duration `json:"handler_timeout" yaml:"handler_timeout"`
+}
+
+type Limits struct {
+	RateLimiter      RateLimiter `json:"rate_limiter" yaml:"rate_limiter"`
+	ConcurrencyLimit int         `json:"concurrency_limit" yaml:"concurrency_limit"`
+	SizeLimit        int         `json:"size_limit" yaml:"size_limit"`
 }
 
 type Log struct {
@@ -113,13 +125,19 @@ func defaults() Config {
 			Type:  LogTypeJSON,
 		},
 		App: App{
-			Host:      "127.0.0.1",
-			Port:      8080,
-			SizeLimit: defaultSizeLimit,
-			Timeout:   5 * time.Second,
-			RateLimiter: RateLimiter{
-				Capacity:   0,
-				RefillRate: 0,
+			Server: Server{
+				Host: "127.0.0.1",
+				Port: 8080,
+			},
+			Timeouts: Timeouts{
+				HandlerTimeout: 5 * time.Second,
+			},
+			Limits: Limits{
+				SizeLimit: defaultSizeLimit,
+				RateLimiter: RateLimiter{
+					Capacity:   0,
+					RefillRate: 0,
+				},
 			},
 			Security: Security{
 				ReadToken:  "default token",
@@ -164,21 +182,12 @@ func applyEnv(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid FILE_STORAGE_APP_PORT=%q: %w", sAppPort, err)
 		}
-		cfg.App.Port = port
+		cfg.App.Server.Port = port
 	}
 
 	sAppHost := os.Getenv("FILE_STORAGE_APP_HOST")
 	if sAppHost != "" {
-		cfg.App.Host = sAppHost
-	}
-
-	sSizeLimit := os.Getenv("FILE_STORAGE_SIZE_LIMIT")
-	if sSizeLimit != "" {
-		sizeLimit, err := strconv.Atoi(sSizeLimit)
-		if err != nil {
-			return fmt.Errorf("invalid FILE_STORAGE_SIZE_LIMIT=%q: %w", sizeLimit, err)
-		}
-		cfg.App.SizeLimit = sizeLimit
+		cfg.App.Server.Host = sAppHost
 	}
 
 	sTimeout := os.Getenv("FILE_STORAGE_TIMEOUT")
@@ -187,7 +196,16 @@ func applyEnv(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid FILE_STORAGE_TIMEOUT=%q: %w", sTimeout, err)
 		}
-		cfg.App.Timeout = timeout
+		cfg.App.Timeouts.HandlerTimeout = timeout
+	}
+
+	sSizeLimit := os.Getenv("FILE_STORAGE_SIZE_LIMIT")
+	if sSizeLimit != "" {
+		sizeLimit, err := strconv.Atoi(sSizeLimit)
+		if err != nil {
+			return fmt.Errorf("invalid FILE_STORAGE_SIZE_LIMIT=%q: %w", sizeLimit, err)
+		}
+		cfg.App.Limits.SizeLimit = sizeLimit
 	}
 
 	sCapacity := os.Getenv("FILE_STORAGE_RATE_LIMITER_CAPACITY")
@@ -196,7 +214,7 @@ func applyEnv(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_CAPACITY=%q: %w", sCapacity, err)
 		}
-		cfg.App.RateLimiter.Capacity = capacity
+		cfg.App.Limits.RateLimiter.Capacity = capacity
 	}
 
 	sRefillRate := os.Getenv("FILE_STORAGE_RATE_LIMITER_REFILL_RATE")
@@ -205,7 +223,7 @@ func applyEnv(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid FILE_STORAGE_RATE_LIMITER_REFILL_RATE=%q: %w", sRefillRate, err)
 		}
-		cfg.App.RateLimiter.RefillRate = refillRate
+		cfg.App.Limits.RateLimiter.RefillRate = refillRate
 	}
 
 	sConcurrencyLimit := os.Getenv("FILE_STORAGE_CONCURRENCY_LIMIT")
@@ -214,7 +232,7 @@ func applyEnv(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid FILE_STORAGE_CONCURRENCY_LIMIT=%q: %w", sConcurrencyLimit, err)
 		}
-		cfg.App.ConcurrencyLimit = concurrencyLimit
+		cfg.App.Limits.ConcurrencyLimit = concurrencyLimit
 	}
 
 	sReadToken := os.Getenv("FILE_STORAGE_READ_TOKEN")
@@ -277,22 +295,12 @@ func applyFlags(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid flag port=%q: %w", raw, err)
 		}
-		cfg.App.Port = port
+		cfg.App.Server.Port = port
 	}
 
 	fHost := pflag.Lookup("host")
 	if fHost != nil && fHost.Changed {
-		cfg.App.Host = fHost.Value.String()
-	}
-
-	fSizeLimit := pflag.Lookup("sizelimit")
-	if fSizeLimit != nil && fSizeLimit.Changed {
-		raw := fSizeLimit.Value.String()
-		sizeLimit, err := strconv.Atoi(raw)
-		if err != nil {
-			return fmt.Errorf("invalid flag sizelimit=%q: %w", raw, err)
-		}
-		cfg.App.SizeLimit = sizeLimit
+		cfg.App.Server.Host = fHost.Value.String()
 	}
 
 	fTimeout := pflag.Lookup("timeout")
@@ -302,7 +310,17 @@ func applyFlags(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid flag timeout=%q: %w", raw, err)
 		}
-		cfg.App.Timeout = timeout
+		cfg.App.Timeouts.HandlerTimeout = timeout
+	}
+
+	fSizeLimit := pflag.Lookup("sizelimit")
+	if fSizeLimit != nil && fSizeLimit.Changed {
+		raw := fSizeLimit.Value.String()
+		sizeLimit, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("invalid flag sizelimit=%q: %w", raw, err)
+		}
+		cfg.App.Limits.SizeLimit = sizeLimit
 	}
 
 	fCapacity := pflag.Lookup("capacity")
@@ -312,7 +330,7 @@ func applyFlags(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid flag capacity=%q: %w", raw, err)
 		}
-		cfg.App.RateLimiter.Capacity = capacity
+		cfg.App.Limits.RateLimiter.Capacity = capacity
 	}
 
 	fRefillRate := pflag.Lookup("refill_rate")
@@ -322,7 +340,7 @@ func applyFlags(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid flag refill_rate=%q: %w", raw, err)
 		}
-		cfg.App.RateLimiter.RefillRate = refillRate
+		cfg.App.Limits.RateLimiter.RefillRate = refillRate
 	}
 
 	fConcurrencyLimit := pflag.Lookup("concurrency_limit")
@@ -332,7 +350,7 @@ func applyFlags(cfg *Config) error {
 		if err != nil {
 			return fmt.Errorf("invalid flag concurrency_limit=%q: %w", raw, err)
 		}
-		cfg.App.ConcurrencyLimit = concurrencyLimit
+		cfg.App.Limits.ConcurrencyLimit = concurrencyLimit
 	}
 
 	fReadToken := pflag.Lookup("readtoken")
@@ -389,20 +407,20 @@ func normalize(cfg *Config) {
 }
 
 func validate(cfg *Config) error {
-	if cfg.App.Host == "" {
+	if cfg.App.Server.Host == "" {
 		return errs.ErrConfigHostNotSet
 	}
 
-	if cfg.App.Port < 1 || cfg.App.Port > 65535 {
+	if cfg.App.Server.Port < 1 || cfg.App.Server.Port > 65535 {
 		return errs.ErrConfigPortOutOfRange
 	}
 
-	if cfg.App.Timeout <= 0 {
+	if cfg.App.Timeouts.HandlerTimeout <= 0 {
 		return errs.ErrConfigInvalidTimeout
 	}
 
-	capacityEnabled := cfg.App.RateLimiter.Capacity > 0
-	refillRateEnabled := cfg.App.RateLimiter.RefillRate > 0
+	capacityEnabled := cfg.App.Limits.RateLimiter.Capacity > 0
+	refillRateEnabled := cfg.App.Limits.RateLimiter.RefillRate > 0
 	if capacityEnabled != refillRateEnabled {
 		return errs.ErrConfigInvalidRateLimiter
 	}

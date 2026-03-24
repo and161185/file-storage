@@ -31,10 +31,16 @@ func TestServer_Authorization(t *testing.T) {
 
 	cfg := config.Config{
 		App: config.App{
-			Host:      "127.0.0.1",
-			Port:      8081,
-			Timeout:   5 * time.Second,
-			SizeLimit: 1024 * 1024,
+			Server: config.Server{
+				Host: "127.0.0.1",
+				Port: 8081,
+			},
+			Timeouts: config.Timeouts{
+				HandlerTimeout: 5 * time.Second,
+			},
+			Limits: config.Limits{
+				SizeLimit: 1024 * 1024,
+			},
 			Security: config.Security{
 				ReadToken:  "1",
 				WriteToken: "2",
@@ -49,7 +55,7 @@ func TestServer_Authorization(t *testing.T) {
 		t.Fatalf("run server error: %v", err)
 	}
 
-	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
+	serverUrl := net.JoinHostPort(cfg.App.Server.Host, strconv.Itoa(cfg.App.Server.Port))
 
 	table := []struct {
 		name       string
@@ -111,11 +117,17 @@ func TestServer_Lifecycle(t *testing.T) {
 
 	cfg := config.Config{
 		App: config.App{
-			Host:        "127.0.0.1",
-			Port:        8080,
-			Timeout:     5 * time.Second,
-			RateLimiter: config.RateLimiter{Capacity: 8, RefillRate: 1},
-			SizeLimit:   1024 * 1024,
+			Server: config.Server{
+				Host: "127.0.0.1",
+				Port: 8080,
+			},
+			Timeouts: config.Timeouts{
+				HandlerTimeout: 5 * time.Second,
+			},
+			Limits: config.Limits{
+				SizeLimit:   1024 * 1024,
+				RateLimiter: config.RateLimiter{Capacity: 8, RefillRate: 1},
+			},
 			Security: config.Security{
 				ReadToken:  "1",
 				WriteToken: "2",
@@ -130,7 +142,7 @@ func TestServer_Lifecycle(t *testing.T) {
 		t.Fatalf("run server error: %v", err)
 	}
 
-	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
+	serverUrl := net.JoinHostPort(cfg.App.Server.Host, strconv.Itoa(cfg.App.Server.Port))
 
 	client := http.DefaultClient
 
@@ -372,7 +384,7 @@ func TestServer_Lifecycle(t *testing.T) {
 
 func runServer(cfg config.Config, t *testing.T) error {
 
-	serverUrl := net.JoinHostPort(cfg.App.Host, strconv.Itoa(cfg.App.Port))
+	serverUrl := net.JoinHostPort(cfg.App.Server.Host, strconv.Itoa(cfg.App.Server.Port))
 
 	log := logger.NewBootstrap()
 	store := inmemory.New()

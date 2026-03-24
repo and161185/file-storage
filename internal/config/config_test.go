@@ -16,7 +16,7 @@ import (
 func TestNewConfig(t *testing.T) {
 	tmpdir := t.TempDir()
 	cfg := defaults()
-	cfg.App.Port = 999
+	cfg.App.Server.Port = 999
 	cfg.Log.Level = LogLevelWarn
 	cfg.Log.Type = LogTypeText
 	cfg.Image.MaxDimension = 2000
@@ -92,20 +92,20 @@ func TestNewConfig(t *testing.T) {
 	if config.Log.Type != LogTypeText {
 		t.Errorf("expected log type %s got %s", LogTypeText, config.Log.Type)
 	}
-	if config.App.Port != 666 {
-		t.Errorf("expected app port 666 got %d", config.App.Port)
+	if config.App.Server.Port != 666 {
+		t.Errorf("expected app port 666 got %d", config.App.Server.Port)
 	}
 	if config.App.Storage != StorageFileSystem {
 		t.Errorf("expected storage %s got %s", StorageFileSystem, config.App.Storage)
 	}
-	if config.App.RateLimiter.Capacity != 9999 {
-		t.Errorf("expected rate limiter capacity 9999 got %d", config.App.RateLimiter.Capacity)
+	if config.App.Limits.RateLimiter.Capacity != 9999 {
+		t.Errorf("expected rate limiter capacity 9999 got %d", config.App.Limits.RateLimiter.Capacity)
 	}
-	if config.App.RateLimiter.RefillRate != 100 {
-		t.Errorf("expected rate limiter refill rate 9999 got %d", config.App.RateLimiter.RefillRate)
+	if config.App.Limits.RateLimiter.RefillRate != 100 {
+		t.Errorf("expected rate limiter refill rate 9999 got %d", config.App.Limits.RateLimiter.RefillRate)
 	}
-	if config.App.ConcurrencyLimit != 10 {
-		t.Errorf("expected concurrency limit 10 got %d", config.App.ConcurrencyLimit)
+	if config.App.Limits.ConcurrencyLimit != 10 {
+		t.Errorf("expected concurrency limit 10 got %d", config.App.Limits.ConcurrencyLimit)
 	}
 }
 
@@ -118,8 +118,8 @@ func TestDefaults(t *testing.T) {
 	if cfg.Log.Type != LogTypeJSON {
 		t.Errorf("expected log type %s got %s", LogTypeJSON, cfg.Log.Type)
 	}
-	if cfg.App.Port != 8080 {
-		t.Errorf("expected app port 0 got %d", cfg.App.Port)
+	if cfg.App.Server.Port != 8080 {
+		t.Errorf("expected app port 0 got %d", cfg.App.Server.Port)
 	}
 }
 
@@ -196,11 +196,11 @@ func TestApplyEnv(t *testing.T) {
 		t.Fatalf("applyEnv error: %s", err)
 	}
 
-	if cfg.App.Port != 5 {
-		t.Errorf("expect port 5 got %d", cfg.App.Port)
+	if cfg.App.Server.Port != 5 {
+		t.Errorf("expect port 5 got %d", cfg.App.Server.Port)
 	}
-	if cfg.App.Timeout != 5*time.Second {
-		t.Errorf("expect timeout %v got %v", 5*time.Second, cfg.App.Timeout)
+	if cfg.App.Timeouts.HandlerTimeout != 5*time.Second {
+		t.Errorf("expect timeout %v got %v", 5*time.Second, cfg.App.Timeouts.HandlerTimeout)
 	}
 	if cfg.Log.Level != LogLevelWarn {
 		t.Errorf("expect log level 'warn' got %s", cfg.Log.Level)
@@ -237,11 +237,11 @@ func TestApplyFlags(t *testing.T) {
 		t.Fatalf("applyFlags error: %s", err)
 	}
 
-	if cfg.App.Port != 5 {
-		t.Errorf("expect port 5 got %d", cfg.App.Port)
+	if cfg.App.Server.Port != 5 {
+		t.Errorf("expect port 5 got %d", cfg.App.Server.Port)
 	}
-	if cfg.App.SizeLimit != 1000 {
-		t.Errorf("expect port 1000 got %d", cfg.App.SizeLimit)
+	if cfg.App.Limits.SizeLimit != 1000 {
+		t.Errorf("expect port 1000 got %d", cfg.App.Limits.SizeLimit)
 	}
 	if cfg.Log.Level != LogLevelWarn {
 		t.Errorf("expect log level 'warn' got %s", cfg.Log.Level)
@@ -261,7 +261,9 @@ func TestValidate(t *testing.T) {
 			name: "host not set",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
@@ -273,10 +275,14 @@ func TestValidate(t *testing.T) {
 			name: "invalid timeout",
 			cfg: Config{
 				App: App{
-					Timeout:  0 * time.Second,
+					Server: Server{
+						Port: 1,
+						Host: "127.0.0.1",
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 0 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Port:     1,
-					Host:     "127.0.0.1",
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -287,10 +293,14 @@ func TestValidate(t *testing.T) {
 			name: "app port < 0",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: -2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     -2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -301,10 +311,14 @@ func TestValidate(t *testing.T) {
 			name: "app port > 65535",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 65536,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     65536,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -315,10 +329,14 @@ func TestValidate(t *testing.T) {
 			name: "log level incorrect",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: "asd", Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -329,10 +347,14 @@ func TestValidate(t *testing.T) {
 			name: "log type incorrect",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: "jjson"},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -343,10 +365,14 @@ func TestValidate(t *testing.T) {
 			name: "invalid image format",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpegd", MaxDimension: 2000},
@@ -357,10 +383,14 @@ func TestValidate(t *testing.T) {
 			name: "token not set",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "", WriteToken: ""}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -371,9 +401,13 @@ func TestValidate(t *testing.T) {
 			name: "invalid storage",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
-					Host:     "127.0.0.1",
-					Port:     2,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -384,12 +418,19 @@ func TestValidate(t *testing.T) {
 			name: "invalid rate limiter",
 			cfg: Config{
 				App: App{
-					Timeout:     5 * time.Second,
-					Storage:     StorageInmemory,
-					Host:        "127.0.0.1",
-					Port:        2,
-					Security:    Security{ReadToken: "1", WriteToken: "2"},
-					RateLimiter: RateLimiter{RefillRate: 1}},
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
+					Storage:  StorageInmemory,
+					Security: Security{ReadToken: "1", WriteToken: "2"},
+					Limits: Limits{
+						RateLimiter: RateLimiter{RefillRate: 1},
+					},
+				},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
 			},
@@ -399,10 +440,14 @@ func TestValidate(t *testing.T) {
 			name: "invalid FS storage, path required",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageFileSystem,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image:   Image{Ext: "jpeg", MaxDimension: 2000},
@@ -414,10 +459,14 @@ func TestValidate(t *testing.T) {
 			name: "ok inmemory",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageInmemory,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image: Image{Ext: "jpeg", MaxDimension: 2000},
@@ -428,10 +477,14 @@ func TestValidate(t *testing.T) {
 			name: "ok fs",
 			cfg: Config{
 				App: App{
-					Timeout:  5 * time.Second,
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: Timeouts{
+						HandlerTimeout: 5 * time.Second,
+					},
 					Storage:  StorageFileSystem,
-					Host:     "127.0.0.1",
-					Port:     2,
 					Security: Security{ReadToken: "1", WriteToken: "2"}},
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image:   Image{Ext: "jpeg", MaxDimension: 2000},
