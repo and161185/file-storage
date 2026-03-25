@@ -70,7 +70,7 @@ func main() {
 	case config.StorageInmemory:
 		storage = inmemory.New()
 	case config.StorageFileSystem:
-		storage = filesystemstorage.New(&cfg.Storage.FileSystem)
+		storage = filesystemstorage.New(&cfg.Storage.FileSystem, log)
 	}
 
 	metricStorage := metricsstorage.New(storage)

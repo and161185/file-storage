@@ -10,7 +10,6 @@ import (
 	"file-storage/internal/filedata"
 	"file-storage/internal/logger"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -72,23 +71,31 @@ func TestUpsert(t *testing.T) {
 			}
 
 			if tt.name == "ok" {
-				dirPatn, err := fileCatalog(tt.path, id)
+				dirPath, err := fileCatalog(tt.path, id)
 				if err != nil {
 					t.Errorf("catalog name error: %v", err)
 				}
 
-				_, err = os.Stat(filepath.Join(dirPatn, id+".bin"))
+				basePath := filepath.Join(dirPath, id)
+				v, _, err := readVersions(basePath)
 				if err != nil {
-					t.Errorf("data file not created")
+					t.Errorf("read versions error: %v", err)
 				}
-				_, err = os.Stat(filepath.Join(dirPatn, id+".meta.json"))
+
+				dataFile := dataFileName(basePath, v)
+				_, err = os.Stat(dataFile)
 				if err != nil {
-					t.Errorf("meta file not created")
+					t.Errorf("data file %s not created", dataFile)
+				}
+
+				metadataFile := metadataFileName(basePath, v)
+				_, err = os.Stat(metadataFile)
+				if err != nil {
+					t.Errorf("meta file %s not created", metadataFile)
 				}
 			}
 		})
 	}
-
 }
 
 func TestDelete(t *testing.T) {
@@ -98,12 +105,12 @@ func TestDelete(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	f := New(&cfg)
+	fUpsert := New(&cfg)
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
 	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
-	id, err := f.Upsert(ctx, fd)
+	id, err := fUpsert.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
 	}
@@ -142,24 +149,27 @@ func TestDelete(t *testing.T) {
 
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
+			cfg := config.FileSystem{Path: tt.path}
+			f := New(&cfg)
+
 			err := f.Delete(ctx, tt.id)
 			if !errors.Is(err, tt.wantError) {
 				t.Errorf("got %v want %v", err, tt.wantError)
 			}
 
-			if tt.name == "delete ok" || tt.name == "delete idempotent" || tt.name == "delete from not exesting dir" {
-				dirPatn, err := fileCatalog(tt.path, id)
+			if tt.name == "delete ok" || tt.name == "delete idempotent" {
+				dirPath, err := fileCatalog(tt.path, id)
 				if err != nil {
 					t.Errorf("catalog name error: %v", err)
 				}
 
-				_, err = os.Stat(filepath.Join(dirPatn, id+".bin"))
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Errorf("data file not deleted")
+				filesToRemove, err := filenamesByID(dirPath, id)
+				if err != nil {
+					t.Errorf("files to remove search error: %v", err)
 				}
-				_, err = os.Stat(filepath.Join(dirPatn, id+".meta.json"))
-				if !errors.Is(err, fs.ErrNotExist) {
-					t.Errorf("meta file not deleted")
+
+				for _, filename := range filesToRemove {
+					t.Errorf("file not deleted: %s", filename)
 				}
 			}
 		})
