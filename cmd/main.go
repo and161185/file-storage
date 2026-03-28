@@ -44,6 +44,9 @@ func main() {
 	pflag.Int("image-max-dimension", 0, "max stored image dimension")
 	pflag.String("storage", "", "storage")
 	pflag.String("fs-storage-path", "", "file system storage path")
+	pflag.Bool("fs-gc-enabled", false, "file system garbage collector enabled")
+	pflag.Int("fs-gc-workers-count", 0, "file system garbage collector workers count")
+	pflag.Duration("fs-gc-interval", 0, "file system garbage collector interval")
 	pflag.Parse()
 
 	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")

@@ -2,13 +2,23 @@ package filesystemstorage
 
 import (
 	"context"
+	"errors"
 	"file-storage/internal/logger"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 )
+
+type cleanupJob struct {
+	dirEntries []os.DirEntry
+	dirPath    string
+	id         string
+}
 
 type GarbageCollector struct {
 	path     string
@@ -28,52 +38,170 @@ func NewGarbageCollector(path string, interval time.Duration, workers int, log *
 
 func (gc *GarbageCollector) Run(ctx context.Context) {
 
-	jobs := make(chan string, gc.workers*2)
+	cleanupJobs := make(chan *cleanupJob, gc.workers*2)
 
-	for {
+	var wg sync.WaitGroup
+	for range gc.workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			worker(ctx, cleanupJobs, gc.log)
+		}()
+	}
 
-		err := gc.CollectGarbage(ctx, jobs)
-		if err != nil {
-			gc.log.Error("garbage collector error", slog.Any(logger.LogFieldError, err))
+	wg.Add(1)
+	go func() {
+		defer func() {
+			wg.Done()
+			close(cleanupJobs)
+		}()
+		for {
+			err := gc.collectGarbage(ctx, cleanupJobs)
+			if err != nil {
+				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+					return
+				}
+				gc.log.Error("garbage collector error", slog.Any(logger.LogFieldError, err))
+			}
+
+			select {
+			case <-time.After(gc.interval):
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
+}
+
+func (gc *GarbageCollector) collectGarbage(ctx context.Context, jobs chan *cleanupJob) error {
+	level1Entries, err := os.ReadDir(gc.path)
+	if err != nil {
+		return fmt.Errorf("gc.path %s reading error: %w", gc.path, err)
+	}
+
+	for _, level1Entry := range level1Entries {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if !level1Entry.IsDir() {
+			continue
 		}
 
-		select {
-		case <-time.After(gc.interval):
+		dirLevel1Path := filepath.Join(gc.path, level1Entry.Name())
+		level2Entries, err := os.ReadDir(dirLevel1Path)
+		if err != nil {
+			err = fmt.Errorf("subdirectory %s reading error: %w", dirLevel1Path, err)
+			gc.log.Warn("garbage collector error", slog.Any(logger.LogFieldError, err))
 			continue
+		}
+
+		for _, level2Entry := range level2Entries {
+
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if !level2Entry.IsDir() {
+				continue
+			}
+
+			dirLevel2Path := filepath.Join(dirLevel1Path, level2Entry.Name())
+			filesEntries, err := os.ReadDir(dirLevel2Path)
+			if err != nil {
+				err = fmt.Errorf("subdirectory %s reading error: %w", dirLevel2Path, err)
+				gc.log.Warn("garbage collector error", slog.Any(logger.LogFieldError, err))
+				continue
+			}
+
+			m := make(map[string][]os.DirEntry)
+			for _, fileEntry := range filesEntries {
+				id := getID(fileEntry.Name())
+				m[id] = append(m[id], fileEntry)
+			}
+
+			for id, entries := range m {
+				select {
+				case jobs <- &cleanupJob{dirEntries: entries, id: id, dirPath: dirLevel2Path}:
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func getID(s string) string {
+	return strings.Split(s, ".")[0]
+}
+
+func worker(ctx context.Context, cleanupJobs chan *cleanupJob, log *slog.Logger) {
+	for {
+		select {
+		case j, ok := <-cleanupJobs:
+			if !ok {
+				return
+			}
+			err := removeGarbage(j)
+			if err != nil {
+				log.Error("remove garbage error", slog.Any(logger.LogFieldError, err))
+			}
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func (gc *GarbageCollector) CollectGarbage(ctx context.Context, jobs chan string) error {
-	entries, err := os.ReadDir(gc.path)
-	if err != nil {
-		return fmt.Errorf("gc.path %s reading error: %w", gc.path, err)
+func removeGarbage(j *cleanupJob) error {
+
+	if len(j.dirEntries) == 0 {
+		return nil
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
+	lockFile, err := lockAcquire(j.id, j.dirPath)
+	if err != nil {
+		return err
+	}
+	defer lockFile.Close()
+
+	keepFiles, err := activeFiles(j.id, j.dirPath)
+	if err != nil {
+		return err
+	}
+
+	for _, e := range j.dirEntries {
+		name := e.Name()
+		if _, ok := keepFiles[name]; ok {
 			continue
 		}
 
-		subDirPath := filepath.Join(gc.path, entry.Name())
-		subEntries, err := os.ReadDir(subDirPath)
-		if err != nil {
-			err = fmt.Errorf("subdirectory %s reading error: %w", subDirPath, err)
-			gc.log.Warn("garbage collector error", slog.Any(logger.LogFieldError, err))
+		err := os.Remove(filepath.Join(j.dirPath, name))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("remove file error: %w", err)
 		}
-
-		for _, subEntry := range subEntries {
-
-		}
-
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
 	}
 
+	err = syncDir(j.dirPath)
+	if err != nil {
+		return fmt.Errorf("sync dir error: %w", err)
+	}
+
+	return nil
+}
+
+func activeFiles(id, dirPath string) (map[string]struct{}, error) {
+	activeState, _, err := slotInfo(dirPath, id)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(map[string]struct{}, 4)
+	m[dataFileName(id, activeState)] = struct{}{}
+	m[metadataFileName(id, activeState)] = struct{}{}
+	m[lockFileName(id)] = struct{}{}
+	m[activeStateFileName(id)] = struct{}{}
+
+	return m, nil
 }

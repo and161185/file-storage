@@ -18,18 +18,22 @@ import (
 )
 
 const (
-	versionA = "A"
-	versionB = "B"
+	slotA          = "A"
+	slotB          = "B"
+	activeStateExt = "active"
+	lockExt        = "lock"
+	binExt         = "bin"
+	metadataExt    = "meta.json"
 )
 
-type versions struct {
+type activeState struct {
 	Data     string
 	Metadata string
 }
 
 func lockAcquire(id string, dirPath string) (*os.File, error) {
 
-	fn := lockFileName(dirPath, id)
+	fn := lockFileFullName(dirPath, id)
 
 	file, err := os.OpenFile(fn, os.O_CREATE|os.O_RDWR, 0644)
 	if err != nil {
@@ -59,8 +63,12 @@ func fileCatalog(path, id string) (string, error) {
 	return filepath.Join(path, cat1, cat2), nil
 }
 
-func lockFileName(catalog, id string) string {
-	return filepath.Join(catalog, id+".lock")
+func lockFileFullName(catalog, id string) string {
+	return filepath.Join(catalog, lockFileName(id))
+}
+
+func lockFileName(id string) string {
+	return id + "." + lockExt
 }
 
 func writeFile(data []byte, path, tempPath string) error {
@@ -104,76 +112,102 @@ func syncDir(dirPath string) error {
 	return nil
 }
 
-func readVersions(basePath string) (versions, versions, error) {
-	versionsPath := versionsFileName(basePath)
+func slotInfo(dirPath, id string) (activeState, activeState, error) {
+	as, err := readActiveState(dirPath, id)
+	if err != nil {
+		return activeState{}, activeState{}, err
+	}
 
-	v := &versions{}
+	currentDataState, newDataState := calcActiveState(as.Data)
+	currentMetadataState, newMetadataState := calcActiveState(as.Metadata)
 
-	b, err := os.ReadFile(versionsPath)
+	return activeState{Data: currentDataState, Metadata: currentMetadataState},
+		activeState{Data: newDataState, Metadata: newMetadataState},
+		nil
+}
+
+func readActiveState(dirPath, id string) (activeState, error) {
+	activeStatePath := activeStateFileFullName(dirPath, id)
+
+	as := &activeState{}
+
+	b, err := os.ReadFile(activeStatePath)
 	if err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
-			return versions{}, versions{}, err
+			return activeState{}, err
 		}
 	} else {
-		err = json.Unmarshal(b, v)
+		err = json.Unmarshal(b, as)
 		if err != nil {
-			return versions{}, versions{}, err
+			return activeState{}, err
 		}
 	}
 
-	currentDataVersion, newDataVersion := calcVersions(v.Data)
-	currentMetadataVersion, newMetadataVersion := calcVersions(v.Metadata)
-
-	return versions{Data: currentDataVersion, Metadata: currentMetadataVersion},
-		versions{Data: newDataVersion, Metadata: newMetadataVersion},
-		nil
-
+	return *as, nil
 }
 
-func calcVersions(currentVersion string) (string, string) {
-	newVersion := ""
+func calcActiveState(currentState string) (string, string) {
+	newState := ""
 
-	switch currentVersion {
-	case versionA:
-		newVersion = versionB
-	case versionB:
-		newVersion = versionA
+	switch currentState {
+	case slotA:
+		newState = slotB
+	case slotB:
+		newState = slotA
 	default:
-		newVersion = versionA
-		currentVersion = ""
+		newState = slotA
+		currentState = ""
 	}
 
-	return currentVersion, newVersion
+	return currentState, newState
 }
 
-func commitVersion(basePath string, v versions) error {
-	versionsPath := versionsFileName(basePath)
-	tempPath := versionsPath + ".tmp"
+func commitActiveState(dirPath, id string, v activeState) error {
+	activeStatePath := activeStateFileFullName(dirPath, id)
+	tempPath := activeStatePath + ".tmp"
 
 	b, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("marshall versions file error: %w", err)
+		return fmt.Errorf("marshall activeState file error: %w", err)
 	}
-	err = writeFile(b, versionsPath, tempPath)
+	err = writeFile(b, activeStatePath, tempPath)
 	if err != nil {
-		return fmt.Errorf("write versions file error: %w", err)
+		return fmt.Errorf("write activeState file error: %w", err)
 	}
 	return nil
 }
 
-func versionsFileName(basePath string) string {
-	return basePath + ".versions"
+func activeStateFileFullName(dirPath, id string) string {
+	return filepath.Join(dirPath, activeStateFileName(id))
 }
 
-func metadataFileName(basePath string, versions versions) string {
-	return basePath + "." + versions.Metadata + ".meta.json"
+func activeStateFileName(id string) string {
+	return id + "." + activeStateExt
 }
 
-func dataFileName(basePath string, versions versions) string {
-	return basePath + "." + versions.Data + ".bin"
+func metadataFileFullName(dirPath, id string, activeState activeState) string {
+	return filepath.Join(dirPath, metadataFileName(id, activeState))
 }
 
-func filenamesByID(dirPath string, ID string) ([]string, error) {
+func metadataFileName(id string, activeState activeState) string {
+	if activeState.Metadata != "" {
+		return id + "." + activeState.Metadata + "." + metadataExt
+	}
+	return id + "." + metadataExt
+}
+
+func dataFileFullName(dirPath, id string, activeState activeState) string {
+	return filepath.Join(dirPath, dataFileName(id, activeState))
+}
+
+func dataFileName(id string, activeState activeState) string {
+	if activeState.Data != "" {
+		return id + "." + activeState.Data + "." + binExt
+	}
+	return id + "." + binExt
+}
+
+func filenamesByID(dirPath string, id string) ([]string, error) {
 	s, err := os.ReadDir(dirPath)
 
 	if err != nil {
@@ -181,9 +215,10 @@ func filenamesByID(dirPath string, ID string) ([]string, error) {
 	}
 
 	result := make([]string, 0, 6)
+	prefix := id + "."
 	for _, file := range s {
 		filename := file.Name()
-		if strings.HasPrefix(filename, ID) {
+		if strings.HasPrefix(filename, prefix) {
 			result = append(result, filename)
 		}
 	}

@@ -27,3 +27,7 @@ image:
 storage:
   filesystem:
     path: "./data"
+    garbage_collector:
+      enabled: true
+      interval: 60m
+      workers_count: 5

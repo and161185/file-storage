@@ -26,7 +26,7 @@ type FileSystemStorage struct {
 func New(cfg *config.FileSystem, log *slog.Logger) *FileSystemStorage {
 	return &FileSystemStorage{
 		path: cfg.Path,
-		gc:   NewGarbageCollector(cfg.Path, 60*time.Minute, log),
+		gc:   NewGarbageCollector(cfg.Path, 60*time.Minute, 5, log),
 	}
 }
 
@@ -73,33 +73,38 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", fmt.Errorf("file info marshall error: %w", err)
 	}
 
-	basePath := filepath.Join(dirPath, fd.ID)
-	currentVersions, newVersions, err := readVersions(basePath)
+	currentAtiveState, newAtiveState, err := slotInfo(dirPath, fd.ID)
 	if err != nil {
-		return "", fmt.Errorf("get versions error: %w", err)
+		return "", fmt.Errorf("get activeState error: %w", err)
 	}
 
+	basePath := filepath.Join(dirPath, fd.ID)
 	if fd.Data != nil {
 		dataTempName := basePath + ".bin.tmp"
-		dataName := dataFileName(basePath, newVersions)
+		dataName := dataFileFullName(dirPath, fd.ID, newAtiveState)
 		err = writeFile(fd.Data, dataName, dataTempName)
 		if err != nil {
 			return "", fmt.Errorf("write file data error: %w", err)
 		}
 	} else {
-		newVersions.Data = currentVersions.Data
+		newAtiveState.Data = currentAtiveState.Data
 	}
 
 	fiTempName := basePath + ".meta.json.tmp"
-	fiName := metadataFileName(basePath, newVersions)
+	fiName := metadataFileFullName(dirPath, fd.ID, newAtiveState)
 	err = writeFile(fiBytes, fiName, fiTempName)
 	if err != nil {
 		return "", fmt.Errorf("write file info error: %w", err)
 	}
 
-	err = commitVersion(basePath, newVersions)
+	err = syncDir(dirPath)
 	if err != nil {
-		return "", fmt.Errorf("commit new version error: %w", err)
+		return "", fmt.Errorf("sync dir error: %w", err)
+	}
+
+	err = commitActiveState(dirPath, fd.ID, newAtiveState)
+	if err != nil {
+		return "", fmt.Errorf("commit new activeState error: %w", err)
 	}
 
 	err = syncDir(dirPath)
@@ -180,13 +185,16 @@ func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.File
 		return nil, fmt.Errorf("catalog name error: %w", err)
 	}
 
-	basePath := filepath.Join(dirPath, ID)
-	v, _, err := readVersions(basePath)
+	v, _, err := slotInfo(dirPath, ID)
 	if err != nil {
-		return nil, fmt.Errorf("read versions error: %w", err)
+		return nil, fmt.Errorf("read activeState error: %w", err)
 	}
 
-	fileName := metadataFileName(basePath, v)
+	return readFileInfo(dirPath, ID, v)
+}
+
+func readFileInfo(dirPath, ID string, activeState activeState) (*filedata.FileInfo, error) {
+	fileName := metadataFileFullName(dirPath, ID, activeState)
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -205,23 +213,23 @@ func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.File
 }
 
 func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
-	fi, err := f.Info(ctx, ID)
-	if err != nil {
-		return nil, err
-	}
 
 	dirPath, err := fileCatalog(f.path, ID)
 	if err != nil {
 		return nil, fmt.Errorf("catalog name error: %w", err)
 	}
 
-	basePath := filepath.Join(dirPath, ID)
-	v, _, err := readVersions(basePath)
+	activeState, _, err := slotInfo(dirPath, ID)
 	if err != nil {
-		return nil, fmt.Errorf("read versions error: %w", err)
+		return nil, fmt.Errorf("read activeState error: %w", err)
 	}
 
-	fileName := dataFileName(basePath, v)
+	fi, err := readFileInfo(dirPath, ID, activeState)
+	if err != nil {
+		return nil, err
+	}
+
+	fileName := dataFileFullName(dirPath, ID, activeState)
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {

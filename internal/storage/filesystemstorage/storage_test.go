@@ -57,7 +57,7 @@ func TestUpsert(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.FileSystem{Path: tt.path}
-			f := New(&cfg)
+			f := New(&cfg, log)
 			id, err := f.Upsert(ctx, tt.fd)
 
 			if tt.wantErr && err == nil {
@@ -77,7 +77,7 @@ func TestUpsert(t *testing.T) {
 				}
 
 				basePath := filepath.Join(dirPath, id)
-				v, _, err := readVersions(basePath)
+				v, _, err := slotInfo(dirPath, id)
 				if err != nil {
 					t.Errorf("read versions error: %v", err)
 				}
@@ -105,7 +105,7 @@ func TestDelete(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	fUpsert := New(&cfg)
+	fUpsert := New(&cfg, log)
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
@@ -150,7 +150,7 @@ func TestDelete(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.FileSystem{Path: tt.path}
-			f := New(&cfg)
+			f := New(&cfg, log)
 
 			err := f.Delete(ctx, tt.id)
 			if !errors.Is(err, tt.wantError) {
@@ -183,7 +183,7 @@ func TestInfo(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	f := New(&cfg)
+	f := New(&cfg, log)
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
@@ -239,7 +239,7 @@ func TestContent(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	f := New(&cfg)
+	f := New(&cfg, log)
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
