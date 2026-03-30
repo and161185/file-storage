@@ -73,7 +73,15 @@ func main() {
 	case config.StorageInmemory:
 		storage = inmemory.New()
 	case config.StorageFileSystem:
-		storage = filesystemstorage.New(&cfg.Storage.FileSystem, log)
+		var err error
+		storage, err = filesystemstorage.New(&cfg.Storage.FileSystem, log)
+		if err != nil {
+			log.Error("filesystem storage init failed", "error", err)
+			os.Exit(1)
+		}
+	default:
+		log.Error("unknown storage type", "storage", cfg.App.Storage)
+		os.Exit(1)
 	}
 
 	metricStorage := metricsstorage.New(storage)

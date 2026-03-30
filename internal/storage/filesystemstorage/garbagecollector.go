@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 )
@@ -116,8 +115,8 @@ func (gc *GarbageCollector) collectGarbage(ctx context.Context, jobs chan *clean
 
 			m := make(map[string][]os.DirEntry)
 			for _, fileEntry := range filesEntries {
-				id := getID(fileEntry.Name())
-				m[id] = append(m[id], fileEntry)
+				fns := disassembleFilename(fileEntry.Name())
+				m[fns.id] = append(m[fns.id], fileEntry)
 			}
 
 			for id, entries := range m {
@@ -131,10 +130,6 @@ func (gc *GarbageCollector) collectGarbage(ctx context.Context, jobs chan *clean
 	}
 
 	return nil
-}
-
-func getID(s string) string {
-	return strings.Split(s, ".")[0]
 }
 
 func worker(ctx context.Context, cleanupJobs chan *cleanupJob, log *slog.Logger) {
@@ -166,11 +161,12 @@ func removeGarbage(j *cleanupJob) error {
 	}
 	defer lockFile.Close()
 
-	keepFiles, err := activeFiles(j.id, j.dirPath)
+	keepFiles, err := activeFiles(j.id, j.dirPath, lockFile)
 	if err != nil {
 		return err
 	}
 
+	callSyncDir := false
 	for _, e := range j.dirEntries {
 		name := e.Name()
 		if _, ok := keepFiles[name]; ok {
@@ -181,20 +177,26 @@ func removeGarbage(j *cleanupJob) error {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove file error: %w", err)
 		}
+		callSyncDir = true
 	}
 
-	err = syncDir(j.dirPath)
-	if err != nil {
-		return fmt.Errorf("sync dir error: %w", err)
+	if callSyncDir {
+		err = syncDir(j.dirPath)
+		if err != nil {
+			return fmt.Errorf("sync dir error: %w", err)
+		}
 	}
 
 	return nil
 }
 
-func activeFiles(id, dirPath string) (map[string]struct{}, error) {
+func activeFiles(id, dirPath string, lockFile *os.File) (map[string]struct{}, error) {
 	activeState, _, err := slotInfo(dirPath, id)
 	if err != nil {
-		return nil, err
+		activeState, _, err = slotInfoWithRecovery(dirPath, id, lockFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	m := make(map[string]struct{}, 4)

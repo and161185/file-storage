@@ -16,6 +16,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 type FileSystemStorage struct {
@@ -23,11 +25,58 @@ type FileSystemStorage struct {
 	gc   *GarbageCollector
 }
 
-func New(cfg *config.FileSystem, log *slog.Logger) *FileSystemStorage {
-	return &FileSystemStorage{
+func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
+	err := flockSupportTest(cfg.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	fss := &FileSystemStorage{
 		path: cfg.Path,
 		gc:   NewGarbageCollector(cfg.Path, 60*time.Minute, 5, log),
 	}
+
+	return fss, nil
+}
+
+func flockSupportTest(path string) error {
+
+	id := "flockSupportTest"
+	f, err := lockAcquire(id, path)
+	if err != nil {
+		return fmt.Errorf("flock support test error: %w", err)
+	}
+	fClosed := false
+	defer func() {
+		if !fClosed {
+			f.Close()
+		}
+		filename := filepath.Join(path, id+"."+lockExt)
+		os.Remove(filename)
+	}()
+
+	fLocked, err := lockAcquireWithFlags(id, path, unix.LOCK_EX|unix.LOCK_NB)
+	if err == nil {
+		fLocked.Close()
+		return errs.ErrFlockSupportTestError
+	}
+	if !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EAGAIN) {
+		return fmt.Errorf("blocked file locking flock support test error: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return fmt.Errorf("flock support test error on closing lock file: %w", err)
+	}
+	fClosed = true
+
+	fLocked, err = lockAcquireWithFlags(id, path, unix.LOCK_EX|unix.LOCK_NB)
+	if err != nil {
+		return fmt.Errorf("file locking flock support test error: %w", err)
+	}
+	fLocked.Close()
+
+	return nil
 }
 
 func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
@@ -75,7 +124,10 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 
 	currentAtiveState, newAtiveState, err := slotInfo(dirPath, fd.ID)
 	if err != nil {
-		return "", fmt.Errorf("get activeState error: %w", err)
+		currentAtiveState, newAtiveState, err = slotInfoWithRecovery(dirPath, fd.ID, lockFile)
+		if err != nil {
+			return "", fmt.Errorf("get activeState error: %w", err)
+		}
 	}
 
 	basePath := filepath.Join(dirPath, fd.ID)

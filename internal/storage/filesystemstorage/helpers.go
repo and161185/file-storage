@@ -31,8 +31,17 @@ type activeState struct {
 	Metadata string
 }
 
-func lockAcquire(id string, dirPath string) (*os.File, error) {
+type fileNameStructure struct {
+	id   string
+	slot string
+	ext  string
+}
 
+func lockAcquire(id string, dirPath string) (*os.File, error) {
+	return lockAcquireWithFlags(id, dirPath, unix.LOCK_EX)
+}
+
+func lockAcquireWithFlags(id string, dirPath string, flags int) (*os.File, error) {
 	fn := lockFileFullName(dirPath, id)
 
 	file, err := os.OpenFile(fn, os.O_CREATE|os.O_RDWR, 0644)
@@ -40,7 +49,7 @@ func lockAcquire(id string, dirPath string) (*os.File, error) {
 		return nil, fmt.Errorf("lock file open error: %w", err)
 	}
 
-	err = unix.Flock(int(file.Fd()), unix.LOCK_EX)
+	err = unix.Flock(int(file.Fd()), flags)
 	if err != nil {
 		_ = file.Close()
 		return nil, fmt.Errorf("lock file lock error: %w", err)
@@ -126,6 +135,20 @@ func slotInfo(dirPath, id string) (activeState, activeState, error) {
 		nil
 }
 
+// supposed id is locked
+func slotInfoWithRecovery(dirPath, id string, lockFile *os.File) (activeState, activeState, error) {
+	if lockFile == nil {
+		return activeState{}, activeState{}, errs.ErrIDNotLocked
+	}
+
+	_, err := recoveryActiveState(dirPath, id)
+	if err != nil {
+		return activeState{}, activeState{}, err
+	}
+
+	return slotInfo(dirPath, id)
+}
+
 func readActiveState(dirPath, id string) (activeState, error) {
 	activeStatePath := activeStateFileFullName(dirPath, id)
 
@@ -162,13 +185,80 @@ func calcActiveState(currentState string) (string, string) {
 	return currentState, newState
 }
 
+func recoveryActiveState(dirPath, id string) (activeState, error) {
+	files, err := os.ReadDir(dirPath)
+	if err != nil {
+		return activeState{}, err
+	}
+
+	activeFiles := make(map[string]time.Time, 2)
+	as := activeState{}
+
+	for _, f := range files {
+		if f.IsDir() {
+			continue
+		}
+		fName := f.Name()
+		fns := disassembleFilename(fName)
+		if fns.id != id {
+			continue
+		}
+
+		isMetadata := fns.ext == metadataExt
+		isData := fns.ext == binExt
+		if !isMetadata && !isData {
+			continue
+		}
+
+		fInfo, err := f.Info()
+		if err != nil {
+			return activeState{}, err
+		}
+
+		if isMetadata {
+			savedTime, ok := activeFiles["Metadata"]
+			fileTime := fInfo.ModTime()
+			if !ok {
+				activeFiles["Metadata"] = fileTime
+				as.Metadata = fns.slot
+			} else {
+				if fileTime.After(savedTime) {
+					activeFiles["Metadata"] = fileTime
+					as.Metadata = fns.slot
+				}
+			}
+		}
+		if isData {
+			savedTime, ok := activeFiles["Data"]
+			fileTime := fInfo.ModTime()
+			if !ok {
+				activeFiles["Data"] = fileTime
+				as.Data = fns.slot
+			} else {
+				if fileTime.After(savedTime) {
+					activeFiles["Data"] = fileTime
+					as.Data = fns.slot
+				}
+			}
+		}
+	}
+
+	err = commitActiveState(dirPath, id, as)
+	if err != nil {
+		return activeState{}, err
+	}
+
+	return as, nil
+
+}
+
 func commitActiveState(dirPath, id string, v activeState) error {
 	activeStatePath := activeStateFileFullName(dirPath, id)
 	tempPath := activeStatePath + ".tmp"
 
 	b, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("marshall activeState file error: %w", err)
+		return fmt.Errorf("marshal activeState file error: %w", err)
 	}
 	err = writeFile(b, activeStatePath, tempPath)
 	if err != nil {
@@ -240,4 +330,24 @@ func logLongCall(ctx context.Context, fd *filedata.FileData, start time.Time) {
 		"id", fd.ID,
 		"fileSize", fd.FileSize,
 	)
+}
+
+func disassembleFilename(filename string) fileNameStructure {
+	parts := strings.Split(filename, ".")
+	fns := fileNameStructure{id: parts[0]}
+	if len(parts) == 1 {
+		return fns
+	}
+
+	switch parts[1] {
+	case slotA:
+		fns.slot = slotA
+	case slotB:
+		fns.slot = slotB
+	default:
+		fns.slot = ""
+	}
+
+	fns.ext = parts[len(parts)-1]
+	return fns
 }

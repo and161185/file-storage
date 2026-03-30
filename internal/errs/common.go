@@ -23,3 +23,6 @@ var ErrUnsupportedImageFormat = errors.New("unsupported image format")
 var ErrInvalidImage = errors.New("invalid image")
 
 var ErrStorageFileIsLocked = errors.New("file is locked")
+
+var ErrFlockSupportTestError = errors.New("flock support test error")
+var ErrIDNotLocked = errors.New("ID not locked")

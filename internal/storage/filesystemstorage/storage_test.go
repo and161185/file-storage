@@ -57,14 +57,17 @@ func TestUpsert(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.FileSystem{Path: tt.path}
-			f := New(&cfg, log)
+			f, err := New(&cfg, log)
+			if err != nil {
+				t.Errorf("got error %v want nil", err)
+			}
 			id, err := f.Upsert(ctx, tt.fd)
 
 			if tt.wantErr && err == nil {
 				t.Errorf("got nil want error")
 			}
 			if !tt.wantErr && err != nil {
-				t.Errorf("got error want nil")
+				t.Errorf("got error %v want nil", err)
 			}
 			if tt.wantID != id {
 				t.Errorf("got id %s want %s", id, tt.wantID)
@@ -105,12 +108,15 @@ func TestDelete(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	fUpsert := New(&cfg, log)
+	fUpsert, err := New(&cfg, log)
+	if err != nil {
+		t.Errorf("got error %v want nil", err)
+	}
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
 	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
-	id, err := fUpsert.Upsert(ctx, fd)
+	id, err = fUpsert.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
 	}
@@ -150,9 +156,12 @@ func TestDelete(t *testing.T) {
 	for _, tt := range table {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := config.FileSystem{Path: tt.path}
-			f := New(&cfg, log)
+			f, err := New(&cfg, log)
+			if err != nil {
+				t.Errorf("got error %v want nil", err)
+			}
 
-			err := f.Delete(ctx, tt.id)
+			err = f.Delete(ctx, tt.id)
 			if !errors.Is(err, tt.wantError) {
 				t.Errorf("got %v want %v", err, tt.wantError)
 			}
@@ -183,13 +192,16 @@ func TestInfo(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	f := New(&cfg, log)
+	f, err := New(&cfg, log)
+	if err != nil {
+		t.Errorf("got error %v want nil", err)
+	}
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
 	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
 	wantFi := &filedata.FileInfo{ID: id, HashSource: "123", IsImage: false}
-	id, err := f.Upsert(ctx, fd)
+	id, err = f.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
 	}
@@ -239,13 +251,16 @@ func TestContent(t *testing.T) {
 
 	path := t.TempDir()
 	cfg := config.FileSystem{Path: path}
-	f := New(&cfg, log)
+	f, err := New(&cfg, log)
+	if err != nil {
+		t.Errorf("got error %v want nil", err)
+	}
 
 	id := "123456789012345678901234567890123456"
 	data := []byte("some data")
 	fd := &filedata.FileData{ID: id, Data: data, HashSource: "123", IsImage: false}
 
-	id, err := f.Upsert(ctx, fd)
+	id, err = f.Upsert(ctx, fd)
 	if err != nil {
 		t.Fatalf("upsert error %v", err)
 	}

@@ -61,7 +61,11 @@ func TestActiveFiles(t *testing.T) {
 				}
 			}
 
-			gotFiles, err := activeFiles(tt.id, dirPath)
+			lockFile, err := lockAcquire(tt.id, dirPath)
+			if err != nil {
+				t.Errorf("lock error: %v", err)
+			}
+			gotFiles, err := activeFiles(tt.id, dirPath, lockFile)
 			if err != nil {
 				t.Errorf("read activeState file error: %v", err)
 			}
@@ -75,6 +79,8 @@ func TestActiveFiles(t *testing.T) {
 
 func TestCollectGarbage(t *testing.T) {
 	root := t.TempDir()
+	id1 := "aabb"
+	id2 := "aacc"
 	path1 := filepath.Join(root, "aa", "bb")
 	path2 := filepath.Join(root, "aa", "cc")
 	err := os.MkdirAll(path1, 0755)
@@ -86,11 +92,20 @@ func TestCollectGarbage(t *testing.T) {
 		t.Fatalf("create directiry %s error: %v", path2, err)
 	}
 
-	files1, err := activeFiles("aabb", path1)
+	lockFile1, err := lockAcquire(id1, path1)
+	if err != nil {
+		t.Errorf("lock error: %v", err)
+	}
+	files1, err := activeFiles(id1, path1, lockFile1)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path1, err)
 	}
-	files2, err := activeFiles("aacc", path2)
+
+	lockFile2, err := lockAcquire(id2, path2)
+	if err != nil {
+		t.Errorf("lock error: %v", err)
+	}
+	files2, err := activeFiles(id2, path2, lockFile2)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path2, err)
 	}
@@ -131,11 +146,11 @@ func TestCollectGarbage(t *testing.T) {
 		idmap[j.id] = struct{}{}
 	}
 
-	if _, ok := idmap["aabb"]; !ok {
-		t.Error("expect aabb id")
+	if _, ok := idmap[id1]; !ok {
+		t.Errorf("expect %s id", id1)
 	}
-	if _, ok := idmap["aacc"]; !ok {
-		t.Error("expect aacc id")
+	if _, ok := idmap[id2]; !ok {
+		t.Errorf("expect %s id", id2)
 	}
 
 	ch2 := make(chan *cleanupJob, 10)
@@ -162,7 +177,12 @@ func TestRemoveGarbage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create directiry %s error: %v", path, err)
 	}
-	files, err := activeFiles("aabb", path)
+
+	lockFile, err := lockAcquire("aabb", path)
+	if err != nil {
+		t.Errorf("lock error: %v", err)
+	}
+	files, err := activeFiles("aabb", path, lockFile)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path, err)
 	}
