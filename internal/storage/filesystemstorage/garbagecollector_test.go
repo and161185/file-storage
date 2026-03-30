@@ -63,17 +63,92 @@ func TestActiveFiles(t *testing.T) {
 
 			lockFile, err := lockAcquire(tt.id, dirPath)
 			if err != nil {
-				t.Errorf("lock error: %v", err)
+				t.Fatalf("lock error: %v", err)
 			}
+			defer lockFile.Close()
 			gotFiles, _, err := activeFiles(tt.id, dirPath, lockFile)
 			if err != nil {
-				t.Errorf("read activeState file error: %v", err)
+				t.Fatalf("read activeState file error: %v", err)
 			}
 
 			if !reflect.DeepEqual(gotFiles, tt.expectFiles) {
 				t.Errorf("activeState mismatch got %v want %v", gotFiles, tt.expectFiles)
 			}
 		})
+	}
+}
+
+func TestRecoveryActiveFiles(t *testing.T) {
+
+	dirPath := t.TempDir()
+
+	id := "aabb"
+	b := []byte("invalid active state")
+	filename := filepath.Join(dirPath, id+"."+activeStateExt)
+	err := os.WriteFile(filename, b, 0644)
+	if err != nil {
+		t.Fatalf("write invalid activeState file error: %v", err)
+	}
+
+	filepathMetadata := filepath.Join(dirPath, id+"."+slotA+"."+metadataExt)
+	err = os.WriteFile(filepathMetadata, b, 0644)
+	if err != nil {
+		t.Fatalf("write metadata file error: %v", err)
+	}
+
+	filepathData := filepath.Join(dirPath, id+"."+slotA+"."+binExt)
+	err = os.WriteFile(filepathData, b, 0644)
+	if err != nil {
+		t.Fatalf("write data file error: %v", err)
+	}
+
+	newTime := time.Now().Add(1 * time.Second)
+
+	filenameActiveMetadata := id + "." + metadataExt
+	filepathActiveMetadata := filepath.Join(dirPath, filenameActiveMetadata)
+	err = os.WriteFile(filepathActiveMetadata, b, 0644)
+	if err != nil {
+		t.Fatalf("write active metadata file error: %v", err)
+	}
+	err = os.Chtimes(filepathActiveMetadata, newTime, newTime)
+	if err != nil {
+		t.Fatalf("change active metadata file time error: %v", err)
+	}
+
+	filenameActiveData := id + "." + slotB + "." + binExt
+	filepathActiveData := filepath.Join(dirPath, filenameActiveData)
+	err = os.WriteFile(filepathActiveData, b, 0644)
+	if err != nil {
+		t.Fatalf("write active data file error: %v", err)
+	}
+	err = os.Chtimes(filepathActiveData, newTime, newTime)
+	if err != nil {
+		t.Fatalf("change active data file time error: %v", err)
+	}
+
+	expectFiles := map[string]struct{}{
+		id + "." + lockExt:        {},
+		id + "." + activeStateExt: {},
+		filenameActiveMetadata:    {},
+		filenameActiveData:        {},
+	}
+
+	lockFile, err := lockAcquire(id, dirPath)
+	if err != nil {
+		t.Fatalf("lock error: %v", err)
+	}
+	defer lockFile.Close()
+
+	gotFiles, recovered, err := activeFiles(id, dirPath, lockFile)
+	if err != nil {
+		t.Fatalf("read activeState file error: %v", err)
+	}
+	if !recovered {
+		t.Error("expect recovered state")
+	}
+
+	if !reflect.DeepEqual(gotFiles, expectFiles) {
+		t.Errorf("activeState mismatch got %v want %v", gotFiles, expectFiles)
 	}
 }
 
@@ -85,17 +160,19 @@ func TestCollectGarbage(t *testing.T) {
 	path2 := filepath.Join(root, "aa", "cc")
 	err := os.MkdirAll(path1, 0755)
 	if err != nil {
-		t.Fatalf("create directiry %s error: %v", path1, err)
+		t.Fatalf("create directory %s error: %v", path1, err)
 	}
 	err = os.MkdirAll(path2, 0755)
 	if err != nil {
-		t.Fatalf("create directiry %s error: %v", path2, err)
+		t.Fatalf("create directory %s error: %v", path2, err)
 	}
 
 	lockFile1, err := lockAcquire(id1, path1)
 	if err != nil {
 		t.Errorf("lock error: %v", err)
 	}
+	defer lockFile1.Close()
+
 	files1, _, err := activeFiles(id1, path1, lockFile1)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path1, err)
@@ -105,6 +182,8 @@ func TestCollectGarbage(t *testing.T) {
 	if err != nil {
 		t.Errorf("lock error: %v", err)
 	}
+	defer lockFile2.Close()
+
 	files2, _, err := activeFiles(id2, path2, lockFile2)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path2, err)
@@ -184,8 +263,10 @@ func TestRemoveGarbage(t *testing.T) {
 
 	lockFile, err := lockAcquire("aabb", path)
 	if err != nil {
-		t.Errorf("lock error: %v", err)
+		t.Fatalf("lock error: %v", err)
 	}
+	defer lockFile.Close()
+
 	files, _, err := activeFiles("aabb", path, lockFile)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path, err)
