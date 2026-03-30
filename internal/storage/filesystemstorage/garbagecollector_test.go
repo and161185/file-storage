@@ -265,12 +265,12 @@ func TestRemoveGarbage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("lock error: %v", err)
 	}
-	defer lockFile.Close()
 
 	files, _, err := activeFiles("aabb", path, lockFile)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path, err)
 	}
+	lockFile.Close()
 
 	for k := range files {
 		filename := filepath.Join(path, k)
