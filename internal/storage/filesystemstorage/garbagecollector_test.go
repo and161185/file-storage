@@ -65,7 +65,7 @@ func TestActiveFiles(t *testing.T) {
 			if err != nil {
 				t.Errorf("lock error: %v", err)
 			}
-			gotFiles, err := activeFiles(tt.id, dirPath, lockFile)
+			gotFiles, _, err := activeFiles(tt.id, dirPath, lockFile)
 			if err != nil {
 				t.Errorf("read activeState file error: %v", err)
 			}
@@ -96,7 +96,7 @@ func TestCollectGarbage(t *testing.T) {
 	if err != nil {
 		t.Errorf("lock error: %v", err)
 	}
-	files1, err := activeFiles(id1, path1, lockFile1)
+	files1, _, err := activeFiles(id1, path1, lockFile1)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path1, err)
 	}
@@ -105,7 +105,7 @@ func TestCollectGarbage(t *testing.T) {
 	if err != nil {
 		t.Errorf("lock error: %v", err)
 	}
-	files2, err := activeFiles(id2, path2, lockFile2)
+	files2, _, err := activeFiles(id2, path2, lockFile2)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path2, err)
 	}
@@ -165,13 +165,17 @@ func TestCollectGarbage(t *testing.T) {
 }
 
 func TestRemoveGarbage(t *testing.T) {
+	root := t.TempDir()
+	log := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
+	gc := NewGarbageCollector(root, 1*time.Minute, 5, log)
+
 	emptyJob := cleanupJob{}
-	err := removeGarbage(&emptyJob)
+
+	err := gc.removeGarbage(&emptyJob, log)
 	if err != nil {
 		t.Errorf("expect nil error got %v", err)
 	}
 
-	root := t.TempDir()
 	path := filepath.Join(root, "aa", "bb")
 	err = os.MkdirAll(path, 0755)
 	if err != nil {
@@ -182,7 +186,7 @@ func TestRemoveGarbage(t *testing.T) {
 	if err != nil {
 		t.Errorf("lock error: %v", err)
 	}
-	files, err := activeFiles("aabb", path, lockFile)
+	files, _, err := activeFiles("aabb", path, lockFile)
 	if err != nil {
 		t.Fatalf("activeFiles %s error: %v", path, err)
 	}
@@ -219,7 +223,7 @@ func TestRemoveGarbage(t *testing.T) {
 	}
 
 	job := &cleanupJob{id: "aabb", dirPath: path, dirEntries: filesEntries}
-	err = removeGarbage(job)
+	err = gc.removeGarbage(job, log)
 	if err != nil {
 		t.Fatalf("removeGarbage error: %v", err)
 	}

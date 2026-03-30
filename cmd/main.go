@@ -67,18 +67,24 @@ func main() {
 	log.Info("starting file-storage", "version", version)
 	logConfig(log, cfg)
 
+	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	var storage files.Storage
 
 	switch cfg.App.Storage {
 	case config.StorageInmemory:
 		storage = inmemory.New()
 	case config.StorageFileSystem:
-		var err error
-		storage, err = filesystemstorage.New(&cfg.Storage.FileSystem, log)
+		fss, err := filesystemstorage.New(&cfg.Storage.FileSystem, log)
 		if err != nil {
 			log.Error("filesystem storage init failed", "error", err)
 			os.Exit(1)
 		}
+		fss.StartGC(ctx)
+		storage = fss
+
 	default:
 		log.Error("unknown storage type", "storage", cfg.App.Storage)
 		os.Exit(1)
@@ -87,10 +93,6 @@ func main() {
 	metricStorage := metricsstorage.New(storage)
 	svc := files.NewService(&cfg.Image, metricStorage)
 	srv := server.NewServer(&cfg.App, svc, log)
-
-	ctx := context.Background()
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {

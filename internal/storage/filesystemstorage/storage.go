@@ -15,14 +15,16 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
 )
 
 type FileSystemStorage struct {
-	path string
-	gc   *GarbageCollector
+	path   string
+	gc     *GarbageCollector
+	gcOnce sync.Once
 }
 
 func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
@@ -31,9 +33,14 @@ func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
 		return nil, err
 	}
 
+	var gc *GarbageCollector
+	if cfg.GarbageCollector.Enabled {
+		gc = NewGarbageCollector(cfg.Path, cfg.GarbageCollector.Interval, cfg.GarbageCollector.WorkersCount, log)
+	}
+
 	fss := &FileSystemStorage{
 		path: cfg.Path,
-		gc:   NewGarbageCollector(cfg.Path, 60*time.Minute, 5, log),
+		gc:   gc,
 	}
 
 	return fss, nil
@@ -292,4 +299,16 @@ func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.C
 
 	data := io.NopCloser(bytes.NewReader(b))
 	return &filedata.ContentData{Data: data, IsImage: fi.IsImage}, nil
+}
+
+func (f *FileSystemStorage) StartGC(ctx context.Context) {
+
+	f.gcOnce.Do(
+		func() {
+			if f.gc != nil {
+				go f.gc.Run(ctx)
+			}
+		},
+	)
+
 }

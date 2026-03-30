@@ -339,15 +339,20 @@ func disassembleFilename(filename string) fileNameStructure {
 		return fns
 	}
 
-	switch parts[1] {
-	case slotA:
+	filenameNoId := strings.Replace(filename, fns.id+".", "", 1)
+
+	if strings.HasPrefix(filenameNoId, slotA+".") {
 		fns.slot = slotA
-	case slotB:
+	} else if strings.HasPrefix(filenameNoId, slotB+".") {
 		fns.slot = slotB
-	default:
-		fns.slot = ""
 	}
 
-	fns.ext = parts[len(parts)-1]
+	if fns.slot != "" {
+		fns.ext = strings.Replace(filenameNoId, fns.slot+".", "", 1)
+	} else {
+		fns.ext = filenameNoId
+	}
+
 	return fns
+
 }

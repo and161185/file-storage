@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"file-storage/internal/logger"
+	"file-storage/internal/metrics"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -44,7 +45,7 @@ func (gc *GarbageCollector) Run(ctx context.Context) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			worker(ctx, cleanupJobs, gc.log)
+			gc.worker(ctx, cleanupJobs, gc.log)
 		}()
 	}
 
@@ -55,13 +56,20 @@ func (gc *GarbageCollector) Run(ctx context.Context) {
 			close(cleanupJobs)
 		}()
 		for {
+			metrics.GcRunsTotal.Inc()
+			begin := time.Now()
+
 			err := gc.collectGarbage(ctx, cleanupJobs)
 			if err != nil {
 				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
 					return
 				}
 				gc.log.Error("garbage collector error", slog.Any(logger.LogFieldError, err))
+				metrics.GcErrorsTotal.Inc()
 			}
+
+			duration := time.Since(begin).Seconds()
+			metrics.GcDurationSeconds.Observe(duration)
 
 			select {
 			case <-time.After(gc.interval):
@@ -132,16 +140,17 @@ func (gc *GarbageCollector) collectGarbage(ctx context.Context, jobs chan *clean
 	return nil
 }
 
-func worker(ctx context.Context, cleanupJobs chan *cleanupJob, log *slog.Logger) {
+func (gc *GarbageCollector) worker(ctx context.Context, cleanupJobs chan *cleanupJob, log *slog.Logger) {
 	for {
 		select {
 		case j, ok := <-cleanupJobs:
 			if !ok {
 				return
 			}
-			err := removeGarbage(j)
+			err := gc.removeGarbage(j, log)
 			if err != nil {
 				log.Error("remove garbage error", slog.Any(logger.LogFieldError, err))
+				metrics.GcErrorsTotal.Inc()
 			}
 		case <-ctx.Done():
 			return
@@ -149,7 +158,7 @@ func worker(ctx context.Context, cleanupJobs chan *cleanupJob, log *slog.Logger)
 	}
 }
 
-func removeGarbage(j *cleanupJob) error {
+func (gc *GarbageCollector) removeGarbage(j *cleanupJob, log *slog.Logger) error {
 
 	if len(j.dirEntries) == 0 {
 		return nil
@@ -161,7 +170,19 @@ func removeGarbage(j *cleanupJob) error {
 	}
 	defer lockFile.Close()
 
-	keepFiles, err := activeFiles(j.id, j.dirPath, lockFile)
+	keepFiles, recovered, err := activeFiles(j.id, j.dirPath, lockFile)
+	if recovered {
+		if err == nil {
+			log.Info("active state recovered",
+				"id", j.id,
+			)
+		} else {
+			log.Warn("active state recover error",
+				"id", j.id,
+				"error", err,
+			)
+		}
+	}
 	if err != nil {
 		return err
 	}
@@ -177,6 +198,7 @@ func removeGarbage(j *cleanupJob) error {
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove file error: %w", err)
 		}
+		metrics.GcFilesDeletedTotal.Inc()
 		callSyncDir = true
 	}
 
@@ -190,12 +212,20 @@ func removeGarbage(j *cleanupJob) error {
 	return nil
 }
 
-func activeFiles(id, dirPath string, lockFile *os.File) (map[string]struct{}, error) {
+func activeFiles(id, dirPath string, lockFile *os.File) (map[string]struct{}, bool, error) {
+
+	recovered := false
 	activeState, _, err := slotInfo(dirPath, id)
 	if err != nil {
+		recovered = true
 		activeState, _, err = slotInfoWithRecovery(dirPath, id, lockFile)
 		if err != nil {
-			return nil, err
+			return nil, recovered, err
+		}
+		metrics.GcRecoveryTotal.Inc()
+		err = syncDir(dirPath)
+		if err != nil {
+			return nil, recovered, fmt.Errorf("sync dir error: %w", err)
 		}
 	}
 
@@ -205,5 +235,5 @@ func activeFiles(id, dirPath string, lockFile *os.File) (map[string]struct{}, er
 	m[lockFileName(id)] = struct{}{}
 	m[activeStateFileName(id)] = struct{}{}
 
-	return m, nil
+	return m, recovered, nil
 }
