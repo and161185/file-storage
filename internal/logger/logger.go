@@ -16,6 +16,7 @@ type HandlerName string
 
 const (
 	ComponentMiddleware ComponentName = "middleware"
+	ComponentGC         ComponentName = "garbage_collector"
 )
 
 const (

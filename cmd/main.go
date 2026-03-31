@@ -44,6 +44,9 @@ func main() {
 	pflag.Int("image-max-dimension", 0, "max stored image dimension")
 	pflag.String("storage", "", "storage")
 	pflag.String("fs-storage-path", "", "file system storage path")
+	pflag.Bool("fs-gc-enabled", false, "file system garbage collector enabled")
+	pflag.Int("fs-gc-workers-count", 0, "file system garbage collector workers count")
+	pflag.Duration("fs-gc-interval", 0, "file system garbage collector interval")
 	pflag.Parse()
 
 	bootstrapLogger := logger.NewBootstrap().With("service", "file-storage")
@@ -64,22 +67,32 @@ func main() {
 	log.Info("starting file-storage", "version", version)
 	logConfig(log, cfg)
 
+	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
 	var storage files.Storage
 
 	switch cfg.App.Storage {
 	case config.StorageInmemory:
 		storage = inmemory.New()
 	case config.StorageFileSystem:
-		storage = filesystemstorage.New(&cfg.Storage.FileSystem)
+		fss, err := filesystemstorage.New(&cfg.Storage.FileSystem, log)
+		if err != nil {
+			log.Error("filesystem storage init failed", "error", err)
+			os.Exit(1)
+		}
+		fss.StartGC(ctx)
+		storage = fss
+
+	default:
+		log.Error("unknown storage type", "storage", cfg.App.Storage)
+		os.Exit(1)
 	}
 
 	metricStorage := metricsstorage.New(storage)
 	svc := files.NewService(&cfg.Image, metricStorage)
 	srv := server.NewServer(&cfg.App, svc, log)
-
-	ctx := context.Background()
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {

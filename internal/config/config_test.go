@@ -195,6 +195,12 @@ func TestApplyEnv(t *testing.T) {
 	}
 	defer os.Unsetenv("FILE_STORAGE_HANDLER_TIMEOUT")
 
+	err = os.Setenv("FILE_STORAGE_FS_GC_ENABLED", "true")
+	if err != nil {
+		t.Fatalf("set FILE_STORAGE_FS_GC_ENABLED error: %s", err)
+	}
+	defer os.Unsetenv("FILE_STORAGE_FS_GC_ENABLED")
+
 	err = applyEnv(&cfg)
 	if err != nil {
 		t.Fatalf("applyEnv error: %s", err)
@@ -215,6 +221,9 @@ func TestApplyEnv(t *testing.T) {
 	if cfg.Log.Type != LogTypeText {
 		t.Errorf("expect log type 'text'  got %s", cfg.Log.Type)
 	}
+	if !cfg.Storage.FileSystem.GarbageCollector.Enabled {
+		t.Errorf("expect gc enabled  got %v", cfg.Storage.FileSystem.GarbageCollector.Enabled)
+	}
 }
 
 func TestApplyFlags(t *testing.T) {
@@ -225,12 +234,14 @@ func TestApplyFlags(t *testing.T) {
 	pflag.String("log-type", "json", "log type")
 	pflag.Int("port", 0, "application port")
 	pflag.Int("size-limit", 0, "max file size")
+	pflag.Bool("fs-gc-enabled", false, "file system garbage collector enabled")
 
 	pflag.Set("config", "C:/config.txt")
 	pflag.Set("log-level", LogLevelWarn)
 	pflag.Set("log-type", LogTypeText)
 	pflag.Set("port", "5")
 	pflag.Set("size-limit", "1000")
+	pflag.Set("fs-gc-enabled", "true")
 
 	err := applyFlags(&cfg)
 	if err != errs.ErrConfigFlagsNotParsed {
@@ -255,6 +266,9 @@ func TestApplyFlags(t *testing.T) {
 	}
 	if cfg.Log.Type != LogTypeText {
 		t.Errorf("expect log type 'text'  got %s", cfg.Log.Type)
+	}
+	if !cfg.Storage.FileSystem.GarbageCollector.Enabled {
+		t.Errorf("expect gc enabled true got %v", cfg.Storage.FileSystem.GarbageCollector.Enabled)
 	}
 }
 
@@ -465,6 +479,24 @@ func TestValidate(t *testing.T) {
 				Log:     Log{Level: LogLevelDebug, Type: LogTypeJSON},
 				Image:   Image{Ext: "jpeg", MaxDimension: 2000},
 				Storage: Storage{FileSystem: FileSystem{}},
+			},
+			want: errs.ErrConfigInvalidStorage,
+		},
+		{
+			name: "invalid FS storage, workers count",
+			cfg: Config{
+				App: App{
+					Server: Server{
+						Host: "127.0.0.1",
+						Port: 2,
+					},
+					Timeouts: timeouts,
+					Storage:  StorageFileSystem,
+					Security: Security{ReadToken: "1", WriteToken: "2"}},
+				Log:   Log{Level: LogLevelDebug, Type: LogTypeJSON},
+				Image: Image{Ext: "jpeg", MaxDimension: 2000},
+				Storage: Storage{FileSystem: FileSystem{Path: "./path",
+					GarbageCollector: GarbageCollector{Enabled: true}}},
 			},
 			want: errs.ErrConfigInvalidStorage,
 		},

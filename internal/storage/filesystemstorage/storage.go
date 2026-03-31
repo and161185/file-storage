@@ -12,20 +12,84 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"golang.org/x/sys/unix"
 )
 
 type FileSystemStorage struct {
-	path         string
-	lockLifetime time.Duration
+	path   string
+	gc     *GarbageCollector
+	gcOnce sync.Once
 }
 
-func New(cfg *config.FileSystem) *FileSystemStorage {
-	return &FileSystemStorage{path: cfg.Path}
+func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
+
+	err := os.MkdirAll(cfg.Path, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	err = flockSupportTest(cfg.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	var gc *GarbageCollector
+	if cfg.GarbageCollector.Enabled {
+		gc = NewGarbageCollector(cfg.Path, cfg.GarbageCollector.Interval, cfg.GarbageCollector.WorkersCount, log)
+	}
+
+	fss := &FileSystemStorage{
+		path: cfg.Path,
+		gc:   gc,
+	}
+
+	return fss, nil
+}
+
+func flockSupportTest(path string) error {
+
+	id := "flockSupportTest"
+	f, err := lockAcquire(id, path)
+	if err != nil {
+		return fmt.Errorf("flock support test error: %w", err)
+	}
+	fClosed := false
+	defer func() {
+		if !fClosed {
+			f.Close()
+		}
+		filename := filepath.Join(path, id+"."+lockExt)
+		os.Remove(filename)
+	}()
+
+	fLocked, err := lockAcquireWithFlags(id, path, unix.LOCK_EX|unix.LOCK_NB)
+	if err == nil {
+		fLocked.Close()
+		return errs.ErrFlockSupportTestError
+	}
+	if !errors.Is(err, unix.EWOULDBLOCK) && !errors.Is(err, unix.EAGAIN) {
+		return fmt.Errorf("blocked file locking flock support test error: %w", err)
+	}
+
+	err = f.Close()
+	if err != nil {
+		return fmt.Errorf("flock support test error on closing lock file: %w", err)
+	}
+	fClosed = true
+
+	fLocked, err = lockAcquireWithFlags(id, path, unix.LOCK_EX|unix.LOCK_NB)
+	if err != nil {
+		return fmt.Errorf("file locking flock support test error: %w", err)
+	}
+	fLocked.Close()
+
+	return nil
 }
 
 func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
@@ -35,19 +99,20 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		return "", errs.ErrInvalidFileData
 	}
 
-	dirPatn, err := fileCatalog(f.path, fd.ID)
+	dirPath, err := fileCatalog(f.path, fd.ID)
 	if err != nil {
 		return "", fmt.Errorf("catalog name error: %w", err)
 	}
-	err = os.MkdirAll(dirPatn, 0755)
+	err = os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return "", fmt.Errorf("directory path creation error: %w", err)
 	}
 
-	lockFile, err := lockAcquire(fd.ID, dirPatn)
+	lockFile, err := lockAcquire(fd.ID, dirPath)
 	if err != nil {
 		return "", fmt.Errorf("lock error: %w", err)
 	}
+
 	defer func() {
 		if err := lockFile.Close(); err != nil {
 			logger.FromContext(ctx).Warn(
@@ -58,29 +123,56 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 		}
 	}()
 
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	default:
+	}
+
 	fi := filedata.FileInfoFromFileData(fd)
 	fiBytes, err := json.Marshal(fi)
 	if err != nil {
 		return "", fmt.Errorf("file info marshall error: %w", err)
 	}
 
+	currentAtiveState, newAtiveState, err := slotInfo(dirPath, fd.ID)
+	if err != nil {
+		currentAtiveState, newAtiveState, err = slotInfoWithRecovery(dirPath, fd.ID, lockFile)
+		if err != nil {
+			return "", fmt.Errorf("get activeState error: %w", err)
+		}
+	}
+
+	basePath := filepath.Join(dirPath, fd.ID)
 	if fd.Data != nil {
-		dataTempName := filepath.Join(dirPatn, fd.ID+".bin.tmp")
-		dataName := filepath.Join(dirPatn, fd.ID+".bin")
+		dataTempName := basePath + ".bin.tmp"
+		dataName := dataFileFullName(dirPath, fd.ID, newAtiveState)
 		err = writeFile(fd.Data, dataName, dataTempName)
 		if err != nil {
 			return "", fmt.Errorf("write file data error: %w", err)
 		}
+	} else {
+		newAtiveState.Data = currentAtiveState.Data
 	}
 
-	fiTempName := filepath.Join(dirPatn, fd.ID+".meta.json.tmp")
-	fiName := filepath.Join(dirPatn, fd.ID+".meta.json")
+	fiTempName := basePath + ".meta.json.tmp"
+	fiName := metadataFileFullName(dirPath, fd.ID, newAtiveState)
 	err = writeFile(fiBytes, fiName, fiTempName)
 	if err != nil {
 		return "", fmt.Errorf("write file info error: %w", err)
 	}
 
-	err = syncDir(dirPatn)
+	err = syncDir(dirPath)
+	if err != nil {
+		return "", fmt.Errorf("sync dir error: %w", err)
+	}
+
+	err = commitActiveState(dirPath, fd.ID, newAtiveState)
+	if err != nil {
+		return "", fmt.Errorf("commit new activeState error: %w", err)
+	}
+
+	err = syncDir(dirPath)
 	if err != nil {
 		return "", fmt.Errorf("sync dir error: %w", err)
 	}
@@ -96,19 +188,19 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 		return errs.ErrInvalidID
 	}
 
-	dirPatn, err := fileCatalog(f.path, ID)
+	dirPath, err := fileCatalog(f.path, ID)
 	if err != nil {
 		return fmt.Errorf("catalog name error: %w", err)
 	}
 
-	if _, err := os.Stat(dirPatn); err != nil {
+	if _, err := os.Stat(dirPath); err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return err
 	}
 
-	lockFile, err := lockAcquire(ID, dirPatn)
+	lockFile, err := lockAcquire(ID, dirPath)
 	if err != nil {
 		return fmt.Errorf("lock error: %w", err)
 	}
@@ -122,21 +214,25 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 		}
 	}()
 
-	filesToRemove := []string{
-		filepath.Join(dirPatn, ID+".bin.tmp"),
-		filepath.Join(dirPatn, ID+".bin"),
-		filepath.Join(dirPatn, ID+".meta.json.tmp"),
-		filepath.Join(dirPatn, ID+".meta.json"),
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	filesToRemove, err := filenamesByID(dirPath, ID)
+	if err != nil {
+		return fmt.Errorf("files to remove search error: %w", err)
 	}
 
 	for _, fileName := range filesToRemove {
-		err := os.Remove(fileName)
+		err := os.Remove(filepath.Join(dirPath, fileName))
 		if err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("remove file error: %w", err)
 		}
 	}
 
-	err = syncDir(dirPatn)
+	err = syncDir(dirPath)
 	if err != nil {
 		return fmt.Errorf("sync dir error: %w", err)
 	}
@@ -149,12 +245,21 @@ func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.File
 		return nil, errs.ErrInvalidID
 	}
 
-	dirPatn, err := fileCatalog(f.path, ID)
+	dirPath, err := fileCatalog(f.path, ID)
 	if err != nil {
 		return nil, fmt.Errorf("catalog name error: %w", err)
 	}
 
-	fileName := filepath.Join(dirPatn, ID+".meta.json")
+	v, _, err := slotInfo(dirPath, ID)
+	if err != nil {
+		return nil, fmt.Errorf("read activeState error: %w", err)
+	}
+
+	return readFileInfo(dirPath, ID, v)
+}
+
+func readFileInfo(dirPath, ID string, activeState activeState) (*filedata.FileInfo, error) {
+	fileName := metadataFileFullName(dirPath, ID, activeState)
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -173,17 +278,23 @@ func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.File
 }
 
 func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
-	fi, err := f.Info(ctx, ID)
-	if err != nil {
-		return nil, err
-	}
 
-	dirPatn, err := fileCatalog(f.path, ID)
+	dirPath, err := fileCatalog(f.path, ID)
 	if err != nil {
 		return nil, fmt.Errorf("catalog name error: %w", err)
 	}
 
-	fileName := filepath.Join(dirPatn, ID+".bin")
+	activeState, _, err := slotInfo(dirPath, ID)
+	if err != nil {
+		return nil, fmt.Errorf("read activeState error: %w", err)
+	}
+
+	fi, err := readFileInfo(dirPath, ID, activeState)
+	if err != nil {
+		return nil, err
+	}
+
+	fileName := dataFileFullName(dirPath, ID, activeState)
 	b, err := os.ReadFile(fileName)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -196,97 +307,14 @@ func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.C
 	return &filedata.ContentData{Data: data, IsImage: fi.IsImage}, nil
 }
 
-func lockAcquire(id string, dirPatn string) (*os.File, error) {
+func (f *FileSystemStorage) StartGC(ctx context.Context) {
 
-	fn := lockFileName(dirPatn, id)
-
-	file, err := os.OpenFile(fn, os.O_CREATE|os.O_RDWR, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("lock file open error: %w", err)
-	}
-
-	err = unix.Flock(int(file.Fd()), unix.LOCK_EX)
-	if err != nil {
-		_ = file.Close()
-		return nil, fmt.Errorf("lock file lock error: %w", err)
-	}
-
-	return file, nil
-}
-
-func fileCatalog(path, id string) (string, error) {
-
-	r := []rune(id)
-
-	if len(r) < 6 {
-		return "", errs.ErrInvalidID
-	}
-
-	cat1 := string(r[0:2])
-	cat2 := string(r[2:4])
-
-	return filepath.Join(path, cat1, cat2), nil
-}
-
-func lockFileName(catalog, id string) string {
-	return filepath.Join(catalog, id+".lock")
-}
-
-func writeFile(data []byte, path, tempPath string) error {
-	file, err := os.OpenFile(tempPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
-	if err != nil {
-		return fmt.Errorf("open file error: %w", err)
-	}
-	defer file.Close()
-
-	_, err = file.Write(data)
-	if err != nil {
-		return fmt.Errorf("write file error: %w", err)
-	}
-
-	err = file.Sync()
-	if err != nil {
-		return fmt.Errorf("file sync error: %w", err)
-	}
-
-	err = os.Rename(tempPath, path)
-	if err != nil {
-		return fmt.Errorf("rename file error: %w", err)
-	}
-
-	return nil
-}
-
-func syncDir(dirPatn string) error {
-
-	cat, err := os.Open(dirPatn)
-	if err != nil {
-		return fmt.Errorf("open catalog error: %w", err)
-	}
-	defer cat.Close()
-
-	err = cat.Sync()
-	if err != nil {
-		return fmt.Errorf("sync catalog error: %w", err)
-	}
-
-	return nil
-}
-
-func logLongCall(ctx context.Context, fd *filedata.FileData, start time.Time) {
-	threshold := 2 * time.Second
-
-	t := time.Since(start)
-	if t < threshold {
-		return
-	}
-
-	log := logger.FromContext(ctx)
-	log.Warn("long upsert call",
-		"duration", t,
-		"threshold", threshold,
-		"id", fd.ID,
-		"fileSize", fd.FileSize,
+	f.gcOnce.Do(
+		func() {
+			if f.gc != nil {
+				go f.gc.Run(ctx)
+			}
+		},
 	)
 
 }

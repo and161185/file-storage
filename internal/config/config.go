@@ -85,8 +85,15 @@ type Image struct {
 	MaxDimension int    `json:"width" yaml:"max_dimension"`
 }
 
+type GarbageCollector struct {
+	Enabled      bool          `json:"enabled" yaml:"enabled"`
+	Interval     time.Duration `json:"interval" yaml:"interval"`
+	WorkersCount int           `json:"workers_count" yaml:"workers_count"`
+}
+
 type FileSystem struct {
-	Path string `json:"path" yaml:"path"`
+	Path             string           `json:"path" yaml:"path"`
+	GarbageCollector GarbageCollector `json:"garbage_collector" yaml:"garbage_collector"`
 }
 
 type Storage struct {
@@ -163,6 +170,15 @@ func defaults() Config {
 		Image: Image{
 			Ext:          "jpeg",
 			MaxDimension: 2000},
+		Storage: Storage{
+			FileSystem: FileSystem{
+				GarbageCollector: GarbageCollector{
+					Enabled:      true,
+					WorkersCount: 5,
+					Interval:     60 * time.Minute,
+				},
+			},
+		},
 	}
 	return cfg
 }
@@ -320,6 +336,30 @@ func applyEnv(cfg *Config) error {
 		cfg.Storage.FileSystem.Path = sFsPath
 	}
 
+	b, ok, err := readBoolEnv("FILE_STORAGE_FS_GC_ENABLED")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.Enabled = b
+	}
+
+	d, ok, err = readDurationEnv("FILE_STORAGE_FS_GC_INTERVAL")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.Interval = d
+	}
+
+	v, ok, err = readIntEnv("FILE_STORAGE_FS_GC_WORKERS_COUNT")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.WorkersCount = v
+	}
+
 	return nil
 }
 
@@ -345,6 +385,18 @@ func readDurationEnv(name string) (time.Duration, bool, error) {
 		return v, true, nil
 	}
 	return 0, false, nil
+}
+
+func readBoolEnv(name string) (bool, bool, error) {
+	sValue := os.Getenv(name)
+	if sValue != "" {
+		v, err := strconv.ParseBool(sValue)
+		if err != nil {
+			return false, false, fmt.Errorf("invalid %s=%q: %w", name, sValue, err)
+		}
+		return v, true, nil
+	}
+	return false, false, nil
 }
 
 func applyFlags(cfg *Config) error {
@@ -481,6 +533,30 @@ func applyFlags(cfg *Config) error {
 		cfg.Storage.FileSystem.Path = fFsstoragepath.Value.String()
 	}
 
+	b, ok, err := readBoolFlag("fs-gc-enabled")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.Enabled = b
+	}
+
+	v, ok, err = readIntFlag("fs-gc-workers-count")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.WorkersCount = v
+	}
+
+	d, ok, err = readDurationFlag("fs-gc-interval")
+	if err != nil {
+		return err
+	}
+	if ok {
+		cfg.Storage.FileSystem.GarbageCollector.Interval = d
+	}
+
 	return nil
 }
 
@@ -508,6 +584,19 @@ func readDurationFlag(name string) (time.Duration, bool, error) {
 		return v, true, nil
 	}
 	return 0, false, nil
+}
+
+func readBoolFlag(name string) (bool, bool, error) {
+	fValue := pflag.Lookup(name)
+	if fValue != nil && fValue.Changed {
+		raw := fValue.Value.String()
+		v, err := strconv.ParseBool(raw)
+		if err != nil {
+			return false, false, fmt.Errorf("invalid flag %s=%q: %w", name, raw, err)
+		}
+		return v, true, nil
+	}
+	return false, false, nil
 }
 
 func normalize(cfg *Config) {
@@ -578,6 +667,15 @@ func validate(cfg *Config) error {
 	if cfg.App.Storage == StorageFileSystem {
 		if cfg.Storage.FileSystem.Path == "" {
 			return fmt.Errorf("%w: filesystem.path is required", errs.ErrConfigInvalidStorage)
+		}
+
+		if cfg.Storage.FileSystem.GarbageCollector.Enabled {
+			if cfg.Storage.FileSystem.GarbageCollector.WorkersCount < 1 {
+				return fmt.Errorf("%w: invalid gc workers count", errs.ErrConfigInvalidStorage)
+			}
+			if cfg.Storage.FileSystem.GarbageCollector.Interval < 0 {
+				return fmt.Errorf("%w: invalid gc interval", errs.ErrConfigInvalidStorage)
+			}
 		}
 	}
 
