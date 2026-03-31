@@ -107,6 +107,7 @@ func TestDelete(t *testing.T) {
 	ctx = context.WithValue(ctx, contextkeys.ContextKeyLogger, log)
 
 	path := t.TempDir()
+
 	cfg := config.FileSystem{Path: path}
 	fUpsert, err := New(&cfg, log)
 	if err != nil {
@@ -136,7 +137,7 @@ func TestDelete(t *testing.T) {
 		{
 			name:      "delete from not exesting dir",
 			id:        id,
-			path:      "/not/existing/derectory",
+			path:      filepath.Join(path, "/not/existing/derectory"),
 			wantError: nil,
 		},
 		{
@@ -158,7 +159,7 @@ func TestDelete(t *testing.T) {
 			cfg := config.FileSystem{Path: tt.path}
 			f, err := New(&cfg, log)
 			if err != nil {
-				t.Errorf("got error %v want nil", err)
+				t.Fatalf("got error %v want nil", err)
 			}
 
 			err = f.Delete(ctx, tt.id)

@@ -28,7 +28,13 @@ type FileSystemStorage struct {
 }
 
 func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
-	err := flockSupportTest(cfg.Path)
+
+	err := os.MkdirAll(cfg.Path, 0755)
+	if err != nil {
+		return nil, err
+	}
+
+	err = flockSupportTest(cfg.Path)
 	if err != nil {
 		return nil, err
 	}
