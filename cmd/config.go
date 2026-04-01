@@ -13,5 +13,8 @@ func getConfig(configPathFlag string) (*config.Config, error) {
 }
 
 func logConfig(log *slog.Logger, cfg *config.Config) {
-	log.Info("config", "config", cfg)
+	cfgCopy := *cfg
+	cfgCopy.App.Security.ReadToken = "***"
+	cfgCopy.App.Security.WriteToken = "***"
+	log.Info("config", "config", cfgCopy)
 }

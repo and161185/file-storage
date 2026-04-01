@@ -4,7 +4,6 @@ import (
 	"file-storage/internal/errs"
 	"file-storage/internal/imgproc"
 	"fmt"
-	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -68,13 +67,6 @@ type Security struct {
 	WriteToken string `json:"write_token" yaml:"write_token"`
 }
 
-func (s *Security) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("read_token", "***"),
-		slog.String("write_token", "***"),
-	)
-}
-
 type RateLimiter struct {
 	Capacity   int `json:"capacity" yaml:"capacity"`
 	RefillRate int `json:"refill_rate" yaml:"refill_rate"`
@@ -82,7 +74,7 @@ type RateLimiter struct {
 
 type Image struct {
 	Ext          string `json:"ext" yaml:"ext"`
-	MaxDimension int    `json:"width" yaml:"max_dimension"`
+	MaxDimension int    `json:"max_dimension" yaml:"max_dimension"`
 }
 
 type GarbageCollector struct {
