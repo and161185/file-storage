@@ -17,7 +17,7 @@ app:
   security:
     read_token: "123"
     write_token: "321"
-  storage: "inmemory"
+  storage: "filesystem"
 log:
   level: "info"
   type: "json"
@@ -29,5 +29,5 @@ storage:
     path: "./data"
     garbage_collector:
       enabled: true
-      interval: 60m
+      interval: "60m"
       workers_count: 5
