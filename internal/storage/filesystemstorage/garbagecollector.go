@@ -56,20 +56,24 @@ func (gc *GarbageCollector) Run(ctx context.Context) {
 			close(cleanupJobs)
 		}()
 		for {
-			metrics.GcRunsTotal.Inc()
-			begin := time.Now()
+			func() {
+				metrics.GcRunsTotal.Inc()
+				metrics.GcInProgress.Set(1)
+				begin := time.Now()
+				defer func() {
+					metrics.GcDurationSeconds.Observe(time.Since(begin).Seconds())
+					metrics.GcInProgress.Set(0)
+				}()
 
-			err := gc.collectGarbage(ctx, cleanupJobs)
-			if err != nil {
-				if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
-					return
+				err := gc.collectGarbage(ctx, cleanupJobs)
+				if err != nil {
+					if ctx.Err() != nil && errors.Is(err, ctx.Err()) {
+						return
+					}
+					gc.log.Error("garbage collector error", slog.Any(logger.LogFieldError, err))
+					metrics.GcErrorsTotal.Inc()
 				}
-				gc.log.Error("garbage collector error", slog.Any(logger.LogFieldError, err))
-				metrics.GcErrorsTotal.Inc()
-			}
-
-			duration := time.Since(begin).Seconds()
-			metrics.GcDurationSeconds.Observe(duration)
+			}()
 
 			select {
 			case <-time.After(gc.interval):

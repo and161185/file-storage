@@ -48,6 +48,10 @@ var GcDurationSeconds = prometheus.NewHistogram(
 	},
 )
 
+var GcInProgress = prometheus.NewGauge(
+	prometheus.GaugeOpts{Name: "fs_gc_in_progress", Help: "GC in progress"},
+)
+
 var GcFilesDeletedTotal = prometheus.NewCounter(
 	prometheus.CounterOpts{Name: "fs_gc_files_deleted_total", Help: "Total number of deleted files by gc"},
 )
@@ -70,6 +74,7 @@ func init() {
 	prometheus.MustRegister(FileBytesReadTotal)
 	prometheus.MustRegister(GcRunsTotal)
 	prometheus.MustRegister(GcDurationSeconds)
+	prometheus.MustRegister(GcInProgress)
 	prometheus.MustRegister(GcFilesDeletedTotal)
 	prometheus.MustRegister(GcErrorsTotal)
 	prometheus.MustRegister(GcRecoveryTotal)
