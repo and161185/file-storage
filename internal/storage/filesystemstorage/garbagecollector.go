@@ -20,6 +20,8 @@ type cleanupJob struct {
 	id         string
 }
 
+// GarbageCollector scans versioned filesystem storage and removes obsolete
+// or incomplete artifacts left after updates and crashes.
 type GarbageCollector struct {
 	path     string
 	interval time.Duration
@@ -27,6 +29,7 @@ type GarbageCollector struct {
 	log      *slog.Logger
 }
 
+// NewGarbageCollector creates a garbage collector for versioned filesystem storage.
 func NewGarbageCollector(path string, interval time.Duration, workers int, log *slog.Logger) *GarbageCollector {
 	return &GarbageCollector{
 		path:     path,
@@ -36,6 +39,8 @@ func NewGarbageCollector(path string, interval time.Duration, workers int, log *
 	}
 }
 
+// Run starts periodic cleanup of obsolete and incomplete filesystem versions
+// and stops when the context is canceled.
 func (gc *GarbageCollector) Run(ctx context.Context) {
 
 	cleanupJobs := make(chan *cleanupJob, gc.workers*2)
@@ -57,6 +62,14 @@ func (gc *GarbageCollector) Run(ctx context.Context) {
 		}()
 		for {
 			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						gc.log.Error("garbage collector run panic recovered", "panic", r)
+						metrics.GcErrorsTotal.Inc()
+						metrics.GcInProgress.Set(0)
+					}
+				}()
+
 				metrics.GcRunsTotal.Inc()
 				metrics.GcInProgress.Set(1)
 				begin := time.Now()
@@ -151,11 +164,22 @@ func (gc *GarbageCollector) worker(ctx context.Context, cleanupJobs chan *cleanu
 			if !ok {
 				return
 			}
-			err := gc.removeGarbage(j, log)
-			if err != nil {
-				log.Error("remove garbage error", slog.Any(logger.LogFieldError, err))
-				metrics.GcErrorsTotal.Inc()
-			}
+
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Error("garbage collector worker panic recovered", "panic", r, "id", j.id)
+						metrics.GcErrorsTotal.Inc()
+					}
+				}()
+
+				err := gc.removeGarbage(j, log)
+				if err != nil {
+					log.Error("remove garbage error", slog.Any(logger.LogFieldError, err))
+					metrics.GcErrorsTotal.Inc()
+				}
+			}()
+
 		case <-ctx.Done():
 			return
 		}
