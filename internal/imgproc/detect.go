@@ -15,6 +15,7 @@ import (
 	_ "golang.org/x/image/webp"
 )
 
+// ImageConfig detects image format and dimensions from raw file data.
 func ImageConfig(data []byte) (format ImgFormat, w, h int, err error) {
 
 	var emptyImgFormat ImgFormat
@@ -33,11 +34,13 @@ func ImageConfig(data []byte) (format ImgFormat, w, h int, err error) {
 	return format, imgCfg.Width, imgCfg.Height, nil
 }
 
+// SupportedInputFormat reports whether the provided format is accepted as an upload input format.
 func SupportedInputFormat(format string) (ImgFormat, bool) {
 	imgFormat, ok := supportedInputFormats[ImgFormat(format)]
 	return imgFormat, ok
 }
 
+// SupportedOutputFormat reports whether the provided format can be used for stored image output.
 func SupportedOutputFormat(format string) (ImgFormat, bool) {
 	imgFormat, ok := supportedOutputFormats[ImgFormat(format)]
 	return imgFormat, ok

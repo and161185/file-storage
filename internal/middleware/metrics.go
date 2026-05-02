@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
+// Metrics returns middleware that records HTTP request counters, latency and in-flight requests.
 func Metrics(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 

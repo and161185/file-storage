@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// UploadCommand contains input required to create a new file or update an existing one.
 type UploadCommand struct {
 	ID       string
 	Data     []byte
@@ -16,6 +17,7 @@ type UploadCommand struct {
 	Metadata map[string]any
 }
 
+// ContentCommand describes a content read request, including optional image transformation parameters.
 type ContentCommand struct {
 	ID     string
 	Width  *int
@@ -23,6 +25,7 @@ type ContentCommand struct {
 	Format *string
 }
 
+// FileData contains file bytes together with system metadata used by business logic and storage.
 type FileData struct {
 	ID         string
 	Data       []byte
@@ -39,6 +42,7 @@ type FileData struct {
 	UpdatedAt  time.Time
 }
 
+// FileInfo contains file metadata without file content.
 type FileInfo struct {
 	ID         string            `json:"id"`
 	HashSource string            `json:"hash_source"`
@@ -54,17 +58,20 @@ type FileInfo struct {
 	UpdatedAt  time.Time         `json:"updated_at"`
 }
 
+// ContentData contains a file content stream and metadata required to build an HTTP response.
 type ContentData struct {
 	Data    io.ReadCloser
 	IsImage bool
 }
 
+// ImageInfo describes detected or stored image format and dimensions.
 type ImageInfo struct {
 	Format imgproc.ImgFormat
 	Width  int
 	Height int
 }
 
+// FileInfoFromFileData builds FileInfo from FileData by copying metadata fields and omitting file content.
 func FileInfoFromFileData(fd *FileData) *FileInfo {
 	fi := FileInfo{
 		ID:         fd.ID,

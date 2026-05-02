@@ -20,11 +20,13 @@ const (
 	maxContentDimension = 10000
 )
 
+// Service implements file business logic on top of storage.
 type Service struct {
 	cfg     *config.Image
 	storage Storage
 }
 
+// NewService creates a Service with image processing settings and a storage implementation.
 func NewService(cfg *config.Image, storage Storage) *Service {
 	return &Service{cfg: cfg, storage: storage}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// HeaderRequestIDName is the HTTP header used to accept and return the request ID.
 const HeaderRequestIDName = "X-Request-ID"
 
 // RequestID middleware injects request ID into request context.

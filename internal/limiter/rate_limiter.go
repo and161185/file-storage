@@ -6,6 +6,7 @@ import (
 	"time"
 )
 
+// RateLimiter implements a token bucket limiter for incoming requests.
 type RateLimiter struct {
 	capacity   float64
 	refillRate float64
@@ -14,6 +15,7 @@ type RateLimiter struct {
 	mx         sync.Mutex
 }
 
+// NewRateLimiter creates a token bucket limiter from configuration.
 func NewRateLimiter(c *config.RateLimiter) *RateLimiter {
 	return &RateLimiter{
 		capacity:   float64(c.Capacity),
@@ -23,6 +25,7 @@ func NewRateLimiter(c *config.RateLimiter) *RateLimiter {
 	}
 }
 
+// Allow reports whether one request is allowed at the current moment.
 func (l *RateLimiter) Allow() bool {
 	if l.capacity <= 0 {
 		return true

@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Upload handles file upload or update requests.
+// UploadHandler returns a handler that creates a new file or updates an existing one from the JSON request body.
 func UploadHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var ur httpdto.UploadRequest

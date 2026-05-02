@@ -21,12 +21,15 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// FileSystemStorage stores file content and metadata on a local filesystem
+// using versioned slots and an atomic active-version switch.
 type FileSystemStorage struct {
 	path   string
 	gc     *GarbageCollector
 	gcOnce sync.Once
 }
 
+// New creates a filesystem storage and validates that the target directory is usable.
 func New(cfg *config.FileSystem, log *slog.Logger) (*FileSystemStorage, error) {
 
 	err := os.MkdirAll(cfg.Path, 0755)
@@ -92,6 +95,8 @@ func flockSupportTest(path string) error {
 	return nil
 }
 
+// Upsert writes a new file version and atomically switches the active version
+// so readers observe either the old or the new state.
 func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
 	start := time.Now()
 
@@ -182,6 +187,7 @@ func (f *FileSystemStorage) Upsert(ctx context.Context, fd *filedata.FileData) (
 	return fd.ID, nil
 }
 
+// Delete removes file content and metadata from filesystem storage.
 func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 
 	if len(ID) == 0 {
@@ -240,6 +246,7 @@ func (f *FileSystemStorage) Delete(ctx context.Context, ID string) error {
 	return nil
 }
 
+// Info reads file metadata from the current active version.
 func (f *FileSystemStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	if len(ID) == 0 {
 		return nil, errs.ErrInvalidID
@@ -277,6 +284,7 @@ func readFileInfo(dirPath, ID string, activeState activeState) (*filedata.FileIn
 	return &fi, nil
 }
 
+// Content opens file content from the current active version for reading.
 func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
 
 	dirPath, err := fileCatalog(f.path, ID)
@@ -307,6 +315,8 @@ func (f *FileSystemStorage) Content(ctx context.Context, ID string) (*filedata.C
 	return &filedata.ContentData{Data: data, IsImage: fi.IsImage}, nil
 }
 
+// StartGC starts the background garbage collector that removes obsolete and
+// incomplete filesystem versions when enabled in configuration.
 func (f *FileSystemStorage) StartGC(ctx context.Context) {
 
 	f.gcOnce.Do(

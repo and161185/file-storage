@@ -1,4 +1,4 @@
-// Package config loads and validates server configuration
+// Package config loads, merges and validates application configuration.
 //
 // Configuration sources priority:
 // flags > environment variables > config file

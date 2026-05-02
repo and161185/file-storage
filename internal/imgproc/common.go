@@ -6,6 +6,7 @@ import (
 	"github.com/disintegration/imaging"
 )
 
+// ImgFormat represents an image format supported by the service.
 type ImgFormat string
 
 const (
@@ -36,6 +37,7 @@ var supportedOutputFormats = map[ImgFormat]ImgFormat{
 	ImgFormatGIF:  ImgFormatGIF,
 }
 
+// ImagingOutputFormat converts ImgFormat to the imaging package output format.
 func ImagingOutputFormat(imf ImgFormat) (imaging.Format, error) {
 	switch imf {
 	case ImgFormatBMP:

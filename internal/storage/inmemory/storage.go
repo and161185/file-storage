@@ -1,7 +1,7 @@
 // Package inmemory provides an in-memory storage implementation.
 //
-// The package is intended for testing and development
-// and should not be used as a production storage.
+// It is intended for testing and development and should not be used
+// as a production storage backend.
 package inmemory
 
 import (
@@ -14,15 +14,18 @@ import (
 	"sync"
 )
 
+// MemoryStorage stores files in process memory and is intended for testing or local runs.
 type MemoryStorage struct {
 	mu      sync.RWMutex
 	storage map[string]*filedata.FileData
 }
 
+// New creates an empty in-memory storage.
 func New() *MemoryStorage {
 	return &MemoryStorage{storage: make(map[string]*filedata.FileData)}
 }
 
+// Upsert creates a new file or replaces an existing one in memory.
 func (s *MemoryStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
 
 	if fd == nil {
@@ -43,6 +46,7 @@ func (s *MemoryStorage) Upsert(ctx context.Context, fd *filedata.FileData) (stri
 	return fd.ID, nil
 }
 
+// Info returns file metadata from in-memory storage.
 func (s *MemoryStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]
@@ -55,6 +59,7 @@ func (s *MemoryStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo
 	return filedata.FileInfoFromFileData(fd), nil
 }
 
+// Content returns file content from in-memory storage.
 func (s *MemoryStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
 	s.mu.RLock()
 	fd := s.storage[ID]
@@ -75,6 +80,7 @@ func (s *MemoryStorage) Content(ctx context.Context, ID string) (*filedata.Conte
 	return &cd, nil
 }
 
+// Delete removes a file from in-memory storage.
 func (s *MemoryStorage) Delete(ctx context.Context, ID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

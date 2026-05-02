@@ -5,12 +5,14 @@ import (
 	"sync"
 )
 
+// ConcurrencyLimiter limits the number of requests that may be processed at the same time.
 type ConcurrencyLimiter struct {
 	capacity int
 	inFlight int
 	mx       sync.Mutex
 }
 
+// NewConcurrencyLimiter creates a concurrency limiter with the configured number of execution slots.
 func NewConcurrencyLimiter(limit int) *ConcurrencyLimiter {
 	return &ConcurrencyLimiter{
 		capacity: limit,
@@ -18,6 +20,7 @@ func NewConcurrencyLimiter(limit int) *ConcurrencyLimiter {
 	}
 }
 
+// Acquire attempts to reserve one execution slot and reports whether the request may proceed.
 func (l *ConcurrencyLimiter) Acquire() bool {
 	if l.capacity <= 0 {
 		return true
@@ -35,6 +38,7 @@ func (l *ConcurrencyLimiter) Acquire() bool {
 	return true
 }
 
+// Release returns one previously acquired execution slot back to the limiter.
 func (l *ConcurrencyLimiter) Release() error {
 	if l.capacity <= 0 {
 		return nil

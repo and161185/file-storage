@@ -14,9 +14,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// Content returns file content by ID.
-// The handler returns raw bytes and does not include metadata.
-// Authorization is required only for private files.
+// ContentHandler returns a handler that serves file content by ID and applies optional image transformation parameters from the request.
 func ContentHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()

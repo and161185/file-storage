@@ -30,6 +30,7 @@ const (
 	StorageInmemory   = "inmemory"
 )
 
+// App groups top-level application settings used to build and run the service.
 type App struct {
 	Server   Server   `json:"server" yaml:"server"`
 	Timeouts Timeouts `json:"timeouts" yaml:"timeouts"`
@@ -38,12 +39,14 @@ type App struct {
 	Storage  string   `json:"storage" yaml:"storage"`
 }
 
+// Server defines HTTP listener settings and request header size limits.
 type Server struct {
 	Host           string `json:"host" yaml:"host"`
 	Port           int    `json:"port" yaml:"port"`
 	MaxHeaderBytes int    `json:"max_header_bytes" yaml:"max_header_bytes"`
 }
 
+// Timeouts defines HTTP server time limits for request handling and connection
 type Timeouts struct {
 	HandlerTimeout    time.Duration `json:"handler_timeout" yaml:"handler_timeout"`
 	ReadHeaderTimeout time.Duration `json:"read_header_timeout" yaml:"read_header_timeout"`
@@ -51,47 +54,57 @@ type Timeouts struct {
 	IdleTimeout       time.Duration `json:"idle_timeout" yaml:"idle_timeout"`
 }
 
+// Limits defines request size, rate limiting and concurrency limiting settings.
 type Limits struct {
 	RateLimiter      RateLimiter `json:"rate_limiter" yaml:"rate_limiter"`
 	ConcurrencyLimit int         `json:"concurrency_limit" yaml:"concurrency_limit"`
 	SizeLimit        int         `json:"size_limit" yaml:"size_limit"`
 }
 
+// Log defines application logger settings.
 type Log struct {
 	Level string `json:"level" yaml:"level"`
 	Type  string `json:"type" yaml:"type"`
 }
 
+// Security defines static read and write tokens accepted by the service.
 type Security struct {
 	ReadToken  string `json:"read_token" yaml:"read_token"`
 	WriteToken string `json:"write_token" yaml:"write_token"`
 }
 
+// RateLimiter defines token bucket settings used to throttle incoming requests.
 type RateLimiter struct {
 	Capacity   int `json:"capacity" yaml:"capacity"`
 	RefillRate int `json:"refill_rate" yaml:"refill_rate"`
 }
 
+// Image defines how uploaded images are resized and which format they are stored in.
 type Image struct {
 	Ext          string `json:"ext" yaml:"ext"`
 	MaxDimension int    `json:"max_dimension" yaml:"max_dimension"`
 }
 
+// GarbageCollector defines cleanup settings for obsolete and incomplete
+// filesystem versions.
 type GarbageCollector struct {
 	Enabled      bool          `json:"enabled" yaml:"enabled"`
 	Interval     time.Duration `json:"interval" yaml:"interval"`
 	WorkersCount int           `json:"workers_count" yaml:"workers_count"`
 }
 
+// FileSystem defines filesystem storage settings, including garbage collector configuration.
 type FileSystem struct {
 	Path             string           `json:"path" yaml:"path"`
 	GarbageCollector GarbageCollector `json:"garbage_collector" yaml:"garbage_collector"`
 }
 
+// Storage groups configuration for supported storage backends.
 type Storage struct {
 	FileSystem FileSystem `json:"filesystem" yaml:"filesystem"`
 }
 
+// Config is the root application configuration assembled from file, environment and flags.
 type Config struct {
 	App     App     `json:"app" yaml:"app"`
 	Log     Log     `json:"log" yaml:"log"`
@@ -99,7 +112,7 @@ type Config struct {
 	Storage Storage `json:"storage" yaml:"storage"`
 }
 
-// NewConfig loads, merges and validates app configuration
+// NewConfig builds application configuration from defaults, config file, environment variables and flags, then validates the result.
 func NewConfig(configPath string) (*Config, error) {
 
 	cfg := defaults()

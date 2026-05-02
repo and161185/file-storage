@@ -9,14 +9,17 @@ import (
 	"time"
 )
 
+// MetricsStorage wraps another storage implementation and records metrics for storage operations.
 type MetricsStorage struct {
 	storage files.Storage
 }
 
+// New creates a metrics-enabled storage wrapper.
 func New(storage files.Storage) *MetricsStorage {
 	return &MetricsStorage{storage: storage}
 }
 
+// Upsert delegates file write to the wrapped storage and records write metrics.
 func (ms *MetricsStorage) Upsert(ctx context.Context, fd *filedata.FileData) (string, error) {
 
 	start := time.Now()
@@ -38,6 +41,7 @@ func (ms *MetricsStorage) Upsert(ctx context.Context, fd *filedata.FileData) (st
 	return id, err
 }
 
+// Info delegates metadata read to the wrapped storage and records read metrics.
 func (ms *MetricsStorage) Info(ctx context.Context, ID string) (*filedata.FileInfo, error) {
 	start := time.Now()
 
@@ -54,6 +58,7 @@ func (ms *MetricsStorage) Info(ctx context.Context, ID string) (*filedata.FileIn
 	return fd, err
 }
 
+// Content delegates content read to the wrapped storage and records read metrics.
 func (ms *MetricsStorage) Content(ctx context.Context, ID string) (*filedata.ContentData, error) {
 	start := time.Now()
 
@@ -78,6 +83,7 @@ func (ms *MetricsStorage) Content(ctx context.Context, ID string) (*filedata.Con
 	return fd, err
 }
 
+// Delete delegates file removal to the wrapped storage and records delete metrics.
 func (ms *MetricsStorage) Delete(ctx context.Context, ID string) error {
 	start := time.Now()
 

@@ -1,112 +1,167 @@
-# Handlers
+# API
+
 ## GET /files/{id}/info
-    200 - Ok
-    404 - Not Found
-    422 - Unprocessable Entity
+
+Returns file metadata without file content.
+
+**Responses:**
+
+* 200 OK — metadata returned
+* 400 Bad Request — invalid ID format
+* 404 Not Found — file does not exist
+
+---
 
 ## GET /files/{id}/content
-    200 - Ok
-    404 - Not Found
-    422 - Unprocessable Entity
+
+Returns file content.
+
+Optional image transformation parameters may be provided.
+
+### Query parameters
+
+* `width` — optional, target width
+* `height` — optional, target height
+* `format` — optional, output image format
+
+**Responses:**
+
+* 200 OK — file content returned
+* 400 Bad Request — invalid ID format or parameters
+* 404 Not Found — file does not exist
+* 422 Unprocessable Entity — stored file cannot be processed (e.g. corrupted image)
+
+---
 
 ## POST /files/upload
-    200 OK
-    - file existed or new file created 
-    - hash different → file replaced
-    - hash same → binary preserved, metadata updated
 
-    400 Bad Request
-    - invalid JSON / invalid base64
+Creates a new file or updates an existing one.
 
-    413 Payload Too Large
+**Behavior:**
 
-    415 Unsupported Media Type
-    - isImage=true but file is not recognized as image
+* if ID is not provided → a new file is created
+* if ID exists:
 
-    422 Unprocessable Entity
-    - provided hash doesn’t match calculated one
-    - no data to upload
+  * different hash → file is replaced
+  * same hash → binary is preserved, metadata is updated
+
+**Request body:**
+
+```json
+{
+  "id": "optional-file-id",
+  "data": "<base64-encoded-binary>",
+  "hash": "<sha256-hash>",
+  "isImage": true,
+  "metadata": {
+    "any": "custom fields"
+  }
+}
+```
+
+**Responses:**
+
+* 200 OK — file created or updated
+* 400 Bad Request — invalid JSON or base64
+* 413 Payload Too Large — request exceeds size limit
+* 415 Unsupported Media Type — `isImage=true`, but file is not a valid image
+* 422 Unprocessable Entity — hash mismatch 
+
+---
 
 ## DELETE /files/{id}/delete
-    204 - No Content
-    (delete is idempotent)
 
-    400 - Bad Request
-    - ID incorrect format 
+Deletes a file.
 
-# Logic
-## File
-File consists of: 
-1. ID 36 characters
-2. Binary data
-3. Metadata (JSON, any fields you want)
-4. Hash
-5. IsImage
+The operation is idempotent.
 
-## UPLOAD
-    requires: Binary, Metadata, Hash
+**Responses:**
 
-    ID optional
-    ID absent OR not found - create (201)
-    ID exists:
-       - hash differs - replace file (200)
-       - hash equals - skip storing, update     metadata only (200)
+* 204 No Content — file deleted or did not exist
+* 400 Bad Request — invalid ID format
 
-    hash:
-       - ensures integrity
-       - avoids pointless rewrites
+---
 
-    isImage optional:
-       - omitted - service detects
-       - true - service validates image format, converts to storage format
-       - invalid image - 415
+# File model
 
-## CONTENT
-    raw binary (file only), format and size can be requested
+A file consists of:
 
-## INFO
-    structure with metadata without binary data
+* ID (36-character string)
+* binary data
+* metadata (JSON, user-defined)
+* hash
+* image flag (`isImage`)
 
+---
 
-# Middlewares
+# Upload rules
 
-## 1.Request ID
-check if X-Request-ID header exists
-- if exists forward it to request_id
-- if not, creates new request_id for query
-request_id stored in context, return in responce header
+* `id` is optional
+* upload is idempotent only when an explicit ID is provided
 
-put logger into context
+### Hash
 
-## 2.Recover
-catch panic
-answer 500
+* ensures data integrity
+* prevents unnecessary rewrites
 
-## 3.Access Log
-log request/response metadata: method, path, status, duration, request_id
+### Image handling
 
-## 4.Timeout
-set timeout in Context
+* `isImage` is optional:
 
-## 5.Size limit
-check request body size 
+  * omitted — service detects automatically
+  * `true` — service validates image and converts it to configured format
+  * invalid image → 415 error
 
-## 6.Authorization
-access control through Token
-identity derived from Token stored in context
-Authorization middleware performs token validation only.
-Final access decisions for file content are made in business logic.
+---
 
-## Examples
+# Middleware
 
-### Get file content (public file)
+## Request ID
+
+* reads `X-Request-ID` header if provided
+* generates a new ID if missing
+* propagates request ID via context
+* returns request ID in response headers
+
+## Recovery
+
+* catches panics
+* returns HTTP 500
+
+## Access log
+
+* logs request metadata: method, path, status, duration, request ID
+
+## Timeout
+
+* sets request timeout via context
+
+## Size limit
+
+* validates request body size
+
+## Authorization
+
+* validates access token
+* extracts identity into context
+* does not enforce business-level access rules
+
+Final access decisions are made in business logic.
+
+---
+
+# Examples
+
+## Get file content (public)
 
 ```bash
 curl -X GET \
   "http://localhost:8080/files/{id}/content"
 ```
 
-For non-public files, authorization is required:
+---
+
+## Get file content (authorized)
 
 ```bash
 curl -X GET \
@@ -114,7 +169,9 @@ curl -X GET \
   -H "Authorization: Bearer <token>"
 ```
 
-### Upload file
+---
+
+## Upload file
 
 ```bash
 curl -X POST \
@@ -132,8 +189,12 @@ curl -X POST \
   }'
 ```
 
-Notes:
+---
 
-id is optional; if omitted, a new file is created
-upload is idempotent only when an explicit id is provided
-metadata is user-defined and not interpreted by the service
+## Delete file
+
+```bash
+curl -X DELETE \
+  "http://localhost:8080/files/{id}/delete" \
+  -H "Authorization: Bearer <token>"
+```

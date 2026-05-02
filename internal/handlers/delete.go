@@ -12,7 +12,7 @@ import (
 	"github.com/go-chi/chi"
 )
 
-// Delete removes a file by ID.
+// DeleteHandler returns a handler that deletes a file by ID.
 // The operation is idempotent.
 func DeleteHandler(svc Service) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

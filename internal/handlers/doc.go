@@ -1,6 +1,7 @@
-// Package handlers provides the HTTP layer of the file service
+// Package handlers implements the HTTP layer of the file service.
 //
-// It defines HTTP handler, request parsing and simple validation
-// The package delegates all business logic to the Service interface
-// does not contain domain rules
+// It is responsible for routing, request parsing and basic validation.
+// All business logic is delegated to the Service interface.
+//
+// The package does not implement domain rules.
 package handlers

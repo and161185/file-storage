@@ -1,28 +1,48 @@
 # File-Storage
 
-Production-oriented file storage service written in Go for use in a corporate network.
+A production-oriented file storage service written in Go.
 
-Primary use cases:
-- product images for marketplaces
-- internal documents and media files
+The service focuses on correctness and predictable behavior:
+- atomic file writes
+- per-ID concurrency control
+- idempotent operations
+- well-defined consistency and crash recovery model
 
-The service supports controlled public access for selected files.
+Designed for single-node deployments with strong correctness guarantees.
 
 ---
 
 ## Features
 
-- Store and retrieve files by ID
-- Idempotent delete; upsert is idempotent when an explicit file ID is provided
-- Image processing (resize)
-- Public / private access model
-- Filesystem-based storage (no DB)
+- Filesystem as storage backend (no external dependencies)
+- Image processing: resize and format conversion
+- Per-file access control (public / private)
+- Per-ID concurrency control (serialized writes)
+
+---
+
+## Guarantees
+
+- Content and metadata are always read in a consistent, non-corrupted state
+- Slot switch is atomic (readers observe either old or new state, never partial)
+- Writes for the same file ID are serialized
+- Delete is idempotent
+- Upload is idempotent when ID is provided
+- No partial or corrupted data is ever exposed to readers
+- Obsolete file data is eventually removed by the garbage collector
+
+---
+
+## Documentation
+
+- [API](docs/api.md)
+- [Architecture](docs/architecture.md)
 
 ---
 
 ## Image processing
 
-The service determines whether a file is an image using:
+The service determines whether a file is an image based on:
 - explicit `is_image` flag in the request, or
 - automatic detection from binary data if the flag is omitted
 
@@ -57,13 +77,17 @@ Non-image files are stored **as-is**, without modification.
 
 Access control is based on the `app.security` configuration section.
 
-- **Public files**
-  - content does not require authorization
-- **Non-public files**
-  - content requires authorization
-- Metadata (`info`) and all write operations always require authorization
+- **Content access**
+  - Public files → no authorization required
+  - Non-public files → authorization required
 
-Public visibility is a business-level property of a file.
+- **Metadata access (`info`)**
+  - Always requires authorization
+
+- **Write operations (upload, delete, update)**
+  - Always require authorization
+
+Public visibility is a business-level property stored in metadata.
 
 ---
 

@@ -10,8 +10,13 @@ import (
 	"strings"
 )
 
+// ComponentName identifies a logical service component in structured logs.
 type ComponentName string
+
+// MiddlewareName identifies middleware in structured logs.
 type MiddlewareName string
+
+// HandlerName identifies an HTTP handler in structured logs.
 type HandlerName string
 
 const (
@@ -44,11 +49,13 @@ const (
 	LogFieldUserAgent = "user_agent"
 )
 
+// NewBootstrap creates a minimal logger used before the main configuration is loaded.
 func NewBootstrap() *slog.Logger {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil)).With("phase", "bootstrap")
 	return logger
 }
 
+// New creates the main application logger from logging configuration.
 func New(cfg *config.Log) *slog.Logger {
 
 	level := slog.LevelInfo
@@ -71,18 +78,22 @@ func New(cfg *config.Log) *slog.Logger {
 	return logger
 }
 
+// WithComponent returns a logger annotated with a component field.
 func WithComponent(log *slog.Logger, c ComponentName) *slog.Logger {
 	return log.With("component", c)
 }
 
+// WithMiddleware returns a logger annotated with a middleware field.
 func WithMiddleware(log *slog.Logger, m MiddlewareName) *slog.Logger {
 	return log.With("middleware", m)
 }
 
+// WithHandler returns a logger annotated with a handler field.
 func WithHandler(log *slog.Logger, h HandlerName) *slog.Logger {
 	return log.With("handler", h)
 }
 
+// FromContext extracts a request logger from context and panics if the logger is missing.
 func FromContext(ctx context.Context) *slog.Logger {
 	l, ok := ctx.Value(contextkeys.ContextKeyLogger).(*slog.Logger)
 

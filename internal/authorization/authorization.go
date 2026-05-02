@@ -1,7 +1,5 @@
-// Package authorization defines authorization models used across the service.
-//
-// The package contains transport-level authorization data extracted from
-// authentication middleware and propagated via context.
+// Package authorization defines request-level authorization data
+// extracted by middleware and propagated via context.
 package authorization
 
 // Auth represents resolved access permissions for a request.
