@@ -19,6 +19,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Server wraps the HTTP server, router, logger and runtime limiters used by the application.
 type Server struct {
 	service        *files.Service
 	host           string
@@ -30,12 +31,14 @@ type Server struct {
 	Log            *slog.Logger
 }
 
+// Limits contains limiter instances attached to the HTTP server.
 type Limits struct {
 	sizelimit          int
 	RateLimiter        *limiter.RateLimiter
-	concurrencyLimiter *limiter.ConcurrencyLimiter
+	ConcurrencyLimiter *limiter.ConcurrencyLimiter
 }
 
+// Timeouts contains server timeout settings resolved from application config.
 type Timeouts struct {
 	handlerTimeout    time.Duration
 	readHeaderTimeout time.Duration
@@ -43,6 +46,7 @@ type Timeouts struct {
 	idleTimeout       time.Duration
 }
 
+// NewServer builds an HTTP server with routes, middleware and runtime limiters configured.
 func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server {
 	return &Server{
 		host:           config.Server.Host,
@@ -51,7 +55,7 @@ func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server
 		limits: Limits{
 			sizelimit:          config.Limits.SizeLimit,
 			RateLimiter:        limiter.NewRateLimiter(&config.Limits.RateLimiter),
-			concurrencyLimiter: limiter.NewConcurrencyLimiter(config.Limits.ConcurrencyLimit),
+			ConcurrencyLimiter: limiter.NewConcurrencyLimiter(config.Limits.ConcurrencyLimit),
 		},
 		timeouts: Timeouts{
 			handlerTimeout: config.Timeouts.HandlerTimeout,
@@ -61,6 +65,7 @@ func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server
 	}
 }
 
+// Run starts the HTTP server and stops it when the provided context is canceled.
 func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 
 	r := chi.NewRouter()
@@ -70,6 +75,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	r.Use(middleware.Metrics)
 
 	r.Group(func(r chi.Router) {
+		r.Use(middleware.ConcurrencyLimiter(s.limits.ConcurrencyLimiter))
 		r.Use(middleware.RateLimiter(s.limits.RateLimiter))
 		r.Use(middleware.Timeout(s.timeouts.handlerTimeout))
 		r.Use(middleware.SizeLimit(int64(s.limits.sizelimit)))
@@ -109,6 +115,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 	return nil
 }
 
+// Shutdown gracefully stops the HTTP server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s.httpServer == nil {
 		return nil
