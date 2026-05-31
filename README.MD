@@ -24,12 +24,12 @@ Designed for single-node deployments with strong correctness guarantees.
 ## Guarantees
 
 - Content and metadata are always read in a consistent, non-corrupted state
-- Slot switch is atomic (readers observe either old or new state, never partial)
+- Slot switch is atomic: readers observe either the old or the new state, never partial data
 - Writes for the same file ID are serialized
 - Delete is idempotent
 - Upload is idempotent when ID is provided
-- No partial or corrupted data is ever exposed to readers
-- Obsolete file data is eventually removed by the garbage collector
+- No partial or corrupted data is exposed to readers
+- Obsolete file data is removed eventually when the filesystem garbage collector is enabled
 
 ---
 
@@ -94,13 +94,13 @@ Public visibility is a business-level property stored in metadata.
 ## How to build and run
 
 ```bash
-go build -o bin/filestorage ./cmd
-./bin/filestorage --config configs/config.yaml
+go build -o bin/fileservice ./cmd
+./bin/fileservice --config configs/config.yaml
 ```
 
 To build with a specific version:
 ```bash
-go build -ldflags "-X main.version=$(git describe --tags --dirty --always)" -o bin/filestorage-$(git describe --tags --dirty --always) ./cmd
+go build -ldflags "-X main.version=$(git describe --tags --dirty --always)" -o bin/fileservice-$(git describe --tags --dirty --always) ./cmd
 ```
 
 To create a release version, tag the commit:

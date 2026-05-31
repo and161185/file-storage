@@ -58,7 +58,10 @@ func NewServer(config *config.App, svc *files.Service, log *slog.Logger) *Server
 			ConcurrencyLimiter: limiter.NewConcurrencyLimiter(config.Limits.ConcurrencyLimit),
 		},
 		timeouts: Timeouts{
-			handlerTimeout: config.Timeouts.HandlerTimeout,
+			handlerTimeout:    config.Timeouts.HandlerTimeout,
+			readHeaderTimeout: config.Timeouts.ReadHeaderTimeout,
+			writeTimeout:      config.Timeouts.WriteTimeout,
+			idleTimeout:       config.Timeouts.IdleTimeout,
 		},
 		service: svc,
 		Log:     log,

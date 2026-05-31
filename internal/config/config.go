@@ -46,7 +46,7 @@ type Server struct {
 	MaxHeaderBytes int    `json:"max_header_bytes" yaml:"max_header_bytes"`
 }
 
-// Timeouts defines HTTP server time limits for request handling and connection
+// Timeouts defines HTTP server and request handling time limits.
 type Timeouts struct {
 	HandlerTimeout    time.Duration `json:"handler_timeout" yaml:"handler_timeout"`
 	ReadHeaderTimeout time.Duration `json:"read_header_timeout" yaml:"read_header_timeout"`

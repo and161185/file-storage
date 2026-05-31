@@ -103,23 +103,30 @@ A crash during write may leave incomplete files on disk, but they are never refe
 ## Metadata model
 
 File metadata is split conceptually:
-- system fields (size, hash, format, image dimensions, public flag)
-- user-defined metadata (opaque, not interpreted by the service)
+- system fields: size, hashes, format, image dimensions, public flag, timestamps
+- user-defined metadata: flat custom fields provided by clients
 
 System fields may affect business behavior.
-User metadata never does.
+User-defined metadata is stored and returned, but is not interpreted by the service.
+Allowed user metadata value types:
+- string
+- boolean
+- number
+
+Nested objects, arrays and null values are not supported.
 
 ---
 
 ## Access model
 
 Access control is enforced at two levels:
-- endpoint-level checks in HTTP handlers
-- file-level access decisions in business logic
+- HTTP middleware resolves request-level access flags from static tokens
+- business logic performs file-level access decisions
 
-Public files may be accessed without authorization.
-Private files require read authorization.
-All write operations always require authorization.
+Public files may be accessed without authorization through the content endpoint.
+Private files require read access.
+Metadata access always requires read access.
+Upload and delete operations always require write access.
 
 Public visibility is an explicit business property of a file.
 
