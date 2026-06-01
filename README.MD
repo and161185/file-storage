@@ -40,6 +40,30 @@ Designed for single-node deployments with strong correctness guarantees.
 
 ---
 
+## Observability
+
+The service exports Prometheus metrics and is monitored with Grafana dashboards.
+
+The dashboard combines service-level metrics and host/runtime metrics, which helps correlate latency or error spikes with resource pressure.
+
+Tracked metrics include:
+
+- HTTP request rate, latency percentiles, in-flight requests, and 4xx errors
+- Storage read/write throughput and slow operations
+- Garbage collector activity
+- Go runtime metrics: heap allocation and goroutines
+- Host metrics: CPU, RAM, disk usage, disk space, and network traffic
+
+### Service metrics
+
+![File storage service metrics](docs/file-storage-service-metrics.png)
+
+### Runtime and host metrics
+
+![File storage runtime and host metrics](docs/file-storage-runtime-host-metrics.png)
+
+---
+
 ## Image processing
 
 The service determines whether a file is an image based on:
