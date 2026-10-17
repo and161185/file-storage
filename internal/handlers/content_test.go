@@ -31,14 +31,14 @@ func TestContentHandler(t *testing.T) {
 		{
 			name:       "invalid width",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": "12"}),
+			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
 			request:    newHttpTestRequest("GET", "/method?width=err", ""),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "invalid height",
 			service:    &mockService{},
-			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": "12"}),
+			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
 			request:    newHttpTestRequest("GET", "/method?height=err", ""),
 			wantStatus: http.StatusBadRequest,
 		},
@@ -58,6 +58,18 @@ func TestContentHandler(t *testing.T) {
 			}},
 			ctx:        newContext(&authorization.Auth{Read: true}, map[string]string{"id": correctID}),
 			request:    newHttpTestRequest("GET", "/method", ""),
+			wantStatus: http.StatusOK,
+		},
+		{
+			name: "format from path",
+			service: &mockService{fnContent: func(ctx context.Context, cc *filedata.ContentCommand) ([]byte, error) {
+				return []byte("ok"), nil
+			}},
+			ctx: newContext(
+				&authorization.Auth{Read: true},
+				map[string]string{"id": correctID, "format": "png"},
+			),
+			request:    newHttpTestRequest("GET", "/files/"+correctID+"/content.png", ""),
 			wantStatus: http.StatusOK,
 		},
 	}

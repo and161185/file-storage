@@ -86,6 +86,7 @@ func (s *Server) Run(ctx context.Context, authCfg config.Security) error {
 
 		r.Get("/files/{id}/info", handlers.InfoHandler(s.service))
 		r.Get("/files/{id}/content", handlers.ContentHandler(s.service))
+		r.Get("/files/{id}/content.{format}", handlers.ContentHandler(s.service))
 		r.Post("/files/upload", handlers.UploadHandler(s.service))
 		r.Delete("/files/{id}/delete", handlers.DeleteHandler(s.service))
 	})

@@ -81,6 +81,10 @@ func parseContentRequest(r *http.Request, ID string) (*httpdto.ContentRequest, e
 	}
 
 	format := strings.TrimSpace(q.Get("format"))
+	if format == "" {
+		format = strings.TrimSpace(chi.URLParam(r, "format"))
+	}
+
 	if format != "" {
 		contentRequest.Format = &format
 	}
